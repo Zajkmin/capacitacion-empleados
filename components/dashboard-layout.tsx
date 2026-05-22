@@ -5,8 +5,6 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/sidebar"
 import { Dashboard } from "@/components/dashboard"
 import { ProjectView } from "@/components/project-view"
-import { VisualLearning } from "@/components/visual-learning"
-import { InteractiveCases } from "@/components/interactive-cases"
 import { Library } from "@/components/library"
 import { Updates } from "@/components/updates"
 import { Profile } from "@/components/profile"
@@ -20,8 +18,6 @@ interface DashboardLayoutProps {
 export type ViewType = 
   | "dashboard" 
   | "project" 
-  | "visual-learning" 
-  | "interactive-cases" 
   | "library" 
   | "updates" 
   | "profile"
@@ -53,10 +49,6 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
             onNavigate={setCurrentView}
           />
         )
-      case "visual-learning":
-        return <VisualLearning onBack={handleBackToDashboard} />
-      case "interactive-cases":
-        return <InteractiveCases onBack={handleBackToDashboard} />
       case "library":
         return <Library onBack={handleBackToDashboard} />
       case "updates":
@@ -84,7 +76,7 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
       
       {/* Main Content */}
       <main className={`flex-1 min-h-screen transition-all duration-300 ${
-        sidebarCollapsed ? "lg:ml-20" : "lg:ml-72"
+        sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[280px]"
       }`}>
         <AnimatePresence mode="wait">
           <motion.div

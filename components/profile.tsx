@@ -17,7 +17,6 @@ import {
   Globe,
   HelpCircle,
   Award,
-  BarChart3,
   Clock,
   Target,
   CheckCircle2,
@@ -124,46 +123,6 @@ export function Profile({ user, onBack }: ProfileProps) {
                 <p className="text-lg font-bold text-foreground">{stat.value}</p>
                 <p className="text-xs text-muted-foreground">{stat.label}</p>
               </motion.div>
-            ))}
-          </div>
-        </motion.div>
-        
-        {/* Progress Card */}
-        <motion.div
-          className="glass-card rounded-2xl p-6 mb-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="font-semibold text-foreground flex items-center gap-2">
-              <BarChart3 className="w-5 h-5 text-primary" />
-              Progreso de Capacitación
-            </h3>
-            <span className="text-sm text-primary font-medium">85% completado</span>
-          </div>
-          
-          <div className="h-3 bg-secondary rounded-full overflow-hidden mb-4">
-            <motion.div
-              className="h-full bg-gradient-to-r from-primary to-accent rounded-full"
-              initial={{ width: 0 }}
-              animate={{ width: "85%" }}
-              transition={{ duration: 1, ease: "easeOut" }}
-            />
-          </div>
-          
-          <div className="grid grid-cols-3 gap-4 text-center">
-            {[
-              { label: "Módulos", current: 17, total: 20 },
-              { label: "Casos", current: 12, total: 15 },
-              { label: "Evaluaciones", current: 8, total: 10 },
-            ].map((item) => (
-              <div key={item.label}>
-                <p className="text-sm text-muted-foreground">{item.label}</p>
-                <p className="font-semibold text-foreground">
-                  {item.current}/{item.total}
-                </p>
-              </div>
             ))}
           </div>
         </motion.div>

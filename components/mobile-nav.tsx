@@ -3,7 +3,6 @@
 import {
   LayoutDashboard,
   BookOpen,
-  Gamepad2,
   Library as LibraryIcon,
   Bell,
   LogOut,
@@ -18,8 +17,6 @@ interface MobileNavProps {
 
 const navItems = [
   { id: "dashboard" as ViewType, icon: LayoutDashboard, label: "Inicio" },
-  { id: "visual-learning" as ViewType, icon: BookOpen, label: "Aprender" },
-  { id: "interactive-cases" as ViewType, icon: Gamepad2, label: "Casos" },
   { id: "library" as ViewType, icon: LibraryIcon, label: "Biblioteca" },
   { id: "updates" as ViewType, icon: Bell, label: "Alertas" },
 ]

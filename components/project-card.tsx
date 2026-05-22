@@ -9,7 +9,6 @@ interface ProjectCardProps {
   client: string
   status: "active" | "pending" | "completed"
   priority: "high" | "medium" | "low"
-  progress: number
   updates: number
   color: string
   logo: string
@@ -21,7 +20,6 @@ export function ProjectCard({
   client,
   status,
   priority,
-  progress,
   updates,
   color,
   logo,
@@ -81,23 +79,6 @@ export function ProjectCard({
             <span className={`px-2 py-1 rounded-md text-xs font-medium ${priorityConfig[priority].class}`}>
               Prioridad {priorityConfig[priority].label}
             </span>
-          </div>
-          
-          {/* Progress */}
-          <div className="mt-4">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="text-muted-foreground">Progreso</span>
-              <span className="font-medium text-foreground">{progress}%</span>
-            </div>
-            <div className="h-2 bg-secondary rounded-full overflow-hidden">
-              <motion.div
-                className="h-full rounded-full"
-                style={{ backgroundColor: color }}
-                initial={{ width: 0 }}
-                animate={{ width: `${progress}%` }}
-                transition={{ duration: 0.8, ease: "easeOut" }}
-              />
-            </div>
           </div>
           
           {/* Action hint */}

@@ -61,7 +61,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
                 <Zap className="w-7 h-7 text-primary-foreground" />
               </div>
-              <span className="text-2xl font-bold text-foreground">App de capacitación</span>
+              <span className="text-2xl font-bold text-foreground">FieldOps Pro</span>
             </div>
             
             <h1 className="text-4xl xl:text-5xl font-bold text-foreground leading-tight mb-6">

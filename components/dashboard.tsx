@@ -1,270 +1,266 @@
 "use client"
 
 import { motion } from "framer-motion"
-import {
-  TrendingUp,
-  Clock,
-  CheckCircle2,
-  AlertTriangle,
-  ArrowRight,
-  Sparkles,
-  Target,
-  BarChart3,
-  Users,
-  FileText,
-  Bell,
-} from "lucide-react"
-import { ProjectCard } from "@/components/project-card"
-import { StatsCard } from "@/components/stats-card"
-import { QuickChecklist } from "@/components/quick-checklist"
+import { Building2 } from "lucide-react"
 
 interface DashboardProps {
   user: { name: string; email: string; role: string }
   onProjectSelect: (projectId: string) => void
 }
 
-const projects = [
-  {
-    id: "1",
-    name: "Auditoría Supermercados Metro",
-    client: "Metro Corp",
-    status: "active" as const,
-    priority: "high" as const,
-    progress: 75,
-    updates: 3,
-    color: "#3B82F6",
-    logo: "M",
-  },
-  {
-    id: "2",
-    name: "Relevamiento Tiendas Express",
-    client: "Grupo Retail",
-    status: "active" as const,
-    priority: "medium" as const,
-    progress: 45,
-    updates: 1,
-    color: "#06B6D4",
-    logo: "T",
-  },
-  {
-    id: "3",
-    name: "Control de Precios Farmacias",
-    client: "Farmacia Total",
-    status: "pending" as const,
-    priority: "low" as const,
-    progress: 20,
-    updates: 0,
-    color: "#10B981",
-    logo: "F",
-  },
-  {
-    id: "4",
-    name: "Inventario Electro Hogar",
-    client: "ElectroMax",
-    status: "completed" as const,
-    priority: "medium" as const,
-    progress: 100,
-    updates: 0,
-    color: "#F59E0B",
-    logo: "E",
-  },
-]
+// Proyectos organizados por pais
+const projectsByCountry = {
+  Paraguay: [
+    {
+      id: "arcor-py",
+      name: "Arcor PY",
+      bgColor: "bg-blue-600",
+      textColor: "text-white",
+      logoText: "ARCOR",
+    },
+    {
+      id: "cervepar",
+      name: "Cervepar",
+      bgColor: "bg-white",
+      textColor: "text-red-600",
+      logoText: "cervepar",
+    },
+    {
+      id: "paresa-1",
+      name: "Paresa",
+      bgColor: "bg-white",
+      textColor: "text-red-600",
+      logoText: "Coca-Cola | PARESA",
+    },
+    {
+      id: "paresa-2",
+      name: "Paresa",
+      bgColor: "bg-white",
+      textColor: "text-red-600",
+      logoText: "Coca-Cola | PARESA",
+    },
+    {
+      id: "arcor-py-2",
+      name: "Otro proyecto",
+      bgColor: "bg-blue-600",
+      textColor: "text-white",
+      logoText: "ARCOR",
+    },
+    {
+      id: "cervepar-2",
+      name: "Cervepar",
+      bgColor: "bg-white",
+      textColor: "text-red-600",
+      logoText: "cervepar",
+    },
+    {
+      id: "paresa-3",
+      name: "Paresa",
+      bgColor: "bg-white",
+      textColor: "text-red-600",
+      logoText: "Coca-Cola | PARESA",
+    },
+    {
+      id: "paresa-4",
+      name: "Paresa",
+      bgColor: "bg-white",
+      textColor: "text-red-600",
+      logoText: "Coca-Cola | PARESA",
+    },
+  ],
+  Uruguay: [
+    {
+      id: "arcor-uy",
+      name: "Arcor UY",
+      bgColor: "bg-blue-900",
+      textColor: "text-white",
+      logoText: "ARCOR",
+      subtitle: "Momentos Magicos",
+    },
+    {
+      id: "sovi",
+      name: "SOVI",
+      bgColor: "bg-gradient-to-br from-amber-500 to-amber-700",
+      textColor: "text-white",
+      logoText: "FNC",
+    },
+    {
+      id: "porvenir",
+      name: "PORVENIR",
+      bgColor: "bg-red-600",
+      textColor: "text-white",
+      logoText: "pepsi",
+    },
+    {
+      id: "fnc-biblia",
+      name: "FNC BIBLIA",
+      bgColor: "bg-blue-700",
+      textColor: "text-white",
+      logoText: "FNC",
+    },
+  ],
+}
 
-const stats = [
-  {
-    label: "Proyectos Activos",
-    value: "4",
-    change: "+2 este mes",
-    trend: "up" as const,
-    icon: Target,
-  },
-  {
-    label: "Tareas Completadas",
-    value: "127",
-    change: "85% de avance",
-    trend: "up" as const,
-    icon: CheckCircle2,
-  },
-  {
-    label: "Alertas Pendientes",
-    value: "5",
-    change: "3 urgentes",
-    trend: "down" as const,
-    icon: AlertTriangle,
-  },
-  {
-    label: "Horas de Capacitación",
-    value: "24h",
-    change: "+8h esta semana",
-    trend: "up" as const,
-    icon: Clock,
-  },
-]
+type ProjectType = (typeof projectsByCountry.Paraguay)[0]
 
-const recentUpdates = [
-  {
-    id: "1",
-    title: "Nueva regla de exhibición agregada",
-    project: "Auditoría Supermercados Metro",
-    time: "Hace 2 horas",
-    type: "rule" as const,
-  },
-  {
-    id: "2",
-    title: "Excepción aprobada para zona norte",
-    project: "Relevamiento Tiendas Express",
-    time: "Hace 5 horas",
-    type: "exception" as const,
-  },
-  {
-    id: "3",
-    title: "Nuevo caso de estudio disponible",
-    project: "Control de Precios Farmacias",
-    time: "Hace 1 día",
-    type: "case" as const,
-  },
-]
-
-export function Dashboard({ user, onProjectSelect }: DashboardProps) {
-  const firstName = user.name.split(" ")[0]
-  
+function ProjectCard({
+  project,
+  onClick,
+}: {
+  project: ProjectType
+  onClick: () => void
+}) {
   return (
-    <div className="min-h-screen p-4 lg:p-8 pb-24 lg:pb-8">
-      {/* Header */}
-      <header className="mb-8">
-        <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="flex items-start justify-between">
-            <div>
-              <h1 className="text-2xl lg:text-4xl font-bold text-foreground mb-2">
-                Hola, {firstName} <Sparkles className="inline-block w-6 h-6 lg:w-8 lg:h-8 text-warning" />
-              </h1>
-              <p className="text-muted-foreground text-sm lg:text-base">
-                Aquí está el resumen de tus operaciones de hoy
-              </p>
+    <motion.button
+      onClick={onClick}
+      className="group flex flex-col items-center w-full"
+      whileHover={{ scale: 1.02 }}
+      whileTap={{ scale: 0.98 }}
+      transition={{ duration: 0.2 }}
+    >
+      <div
+        className={`w-full aspect-[4/3] rounded-xl ${project.bgColor} flex items-center justify-center overflow-hidden relative shadow-lg group-hover:shadow-xl transition-all duration-300`}
+      >
+        {/* Logo/Brand display */}
+        <div className="flex flex-col items-center justify-center p-4">
+          {project.logoText.includes("|") ? (
+            <div className="flex items-center gap-2">
+              <span className="text-xl md:text-2xl font-bold italic text-red-600">
+                Coca-Cola
+              </span>
+              <span className="text-lg md:text-xl font-semibold text-blue-800">PARESA</span>
             </div>
-            <div className="hidden lg:flex items-center gap-3">
-              <button className="relative p-3 rounded-xl bg-card border border-border hover:bg-card/80 transition-colors">
-                <Bell className="w-5 h-5 text-muted-foreground" />
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-destructive-foreground text-xs rounded-full flex items-center justify-center">
-                  3
-                </span>
-              </button>
+          ) : project.logoText === "pepsi" ? (
+            <div className="text-3xl md:text-4xl font-bold text-white italic">pepsi</div>
+          ) : project.logoText === "cervepar" ? (
+            <div className="flex items-center gap-1">
+              <span className="text-red-500 text-xl md:text-2xl">★</span>
+              <span className="text-xl md:text-2xl font-bold text-red-600">cervepar</span>
             </div>
-          </div>
-        </motion.div>
-      </header>
-      
-      {/* Stats Grid */}
-      <section className="mb-8">
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {stats.map((stat, index) => (
-            <motion.div
-              key={stat.label}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.3, delay: index * 0.05 }}
+          ) : project.logoText === "ARCOR" ? (
+            <div
+              className={`text-2xl md:text-3xl font-bold ${project.textColor} tracking-wider`}
             >
-              <StatsCard {...stat} />
+              ARCOR
+            </div>
+          ) : project.logoText === "FNC" ? (
+            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/90 flex items-center justify-center">
+              <span className="text-lg md:text-xl font-bold text-blue-800">FNC</span>
+            </div>
+          ) : (
+            <span className={`text-xl md:text-2xl font-bold ${project.textColor}`}>
+              {project.logoText}
+            </span>
+          )}
+          {"subtitle" in project && project.subtitle && (
+            <span className="text-xs text-white/70 mt-1">{project.subtitle}</span>
+          )}
+        </div>
+
+        {/* Hover overlay */}
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/10 transition-colors" />
+      </div>
+      <span className="mt-2 text-sm text-foreground/70 group-hover:text-foreground transition-colors">
+        {project.name}
+      </span>
+    </motion.button>
+  )
+}
+
+function CountrySection({
+  country,
+  projects,
+  onProjectSelect,
+  delay = 0,
+}: {
+  country: string
+  projects: ProjectType[]
+  onProjectSelect: (projectId: string) => void
+  delay?: number
+}) {
+  return (
+    <motion.section
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4, delay }}
+      className="mb-8"
+    >
+      {/* Section Header */}
+      <div className="flex items-center gap-3 mb-4">
+        <Building2 className="w-5 h-5 text-primary" />
+        <h2 className="text-lg font-semibold text-foreground">
+          Proyectos {country}
+        </h2>
+        <div className="flex-1 h-px bg-border" />
+      </div>
+
+      {/* Glass Container */}
+      <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-4 md:p-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
+          {projects.map((project, index) => (
+            <motion.div
+              key={project.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.3, delay: delay + index * 0.05 }}
+            >
+              <ProjectCard
+                project={project}
+                onClick={() => onProjectSelect(project.id)}
+              />
             </motion.div>
           ))}
         </div>
-      </section>
-      
-      {/* Main Content Grid */}
-      <div className="grid lg:grid-cols-3 gap-6">
-        {/* Projects Section */}
-        <section className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg lg:text-xl font-semibold text-foreground flex items-center gap-2">
-              <Target className="w-5 h-5 text-primary" />
-              Proyectos Asignados
-            </h2>
-            <button className="text-sm text-primary hover:text-primary/80 flex items-center gap-1 transition-colors">
-              Ver todos <ArrowRight className="w-4 h-4" />
-            </button>
-          </div>
-          
-          <div className="grid sm:grid-cols-2 gap-4">
-            {projects.map((project, index) => (
-              <motion.div
-                key={project.id}
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.3, delay: 0.1 + index * 0.05 }}
-              >
-                <ProjectCard
-                  {...project}
-                  onClick={() => onProjectSelect(project.id)}
-                />
-              </motion.div>
-            ))}
-          </div>
-        </section>
-        
-        {/* Right Sidebar */}
-        <aside className="space-y-6">
-          {/* Quick Checklist */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.2 }}
-          >
-            <QuickChecklist />
-          </motion.div>
-          
-          {/* Recent Updates */}
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.3, delay: 0.3 }}
-          >
-            <div className="glass-card rounded-2xl p-5">
-              <h3 className="text-base font-semibold text-foreground mb-4 flex items-center gap-2">
-                <Bell className="w-5 h-5 text-primary" />
-                Actualizaciones Recientes
-              </h3>
-              
-              <div className="space-y-3">
-                {recentUpdates.map((update) => (
-                  <div
-                    key={update.id}
-                    className="p-3 rounded-xl bg-secondary/50 hover:bg-secondary transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-start gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
-                        update.type === "rule" ? "bg-primary/20 text-primary" :
-                        update.type === "exception" ? "bg-warning/20 text-warning" :
-                        "bg-accent/20 text-accent"
-                      }`}>
-                        <FileText className="w-4 h-4" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-foreground truncate">
-                          {update.title}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-0.5">
-                          {update.project}
-                        </p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {update.time}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-              
-              <button className="w-full mt-4 py-2.5 text-sm text-primary hover:bg-primary/10 rounded-xl transition-colors">
-                Ver todas las actualizaciones
-              </button>
-            </div>
-          </motion.div>
-        </aside>
       </div>
+    </motion.section>
+  )
+}
+
+export function Dashboard({ user, onProjectSelect }: DashboardProps) {
+  return (
+    <div className="min-h-screen pb-24 lg:pb-8">
+      {/* Header */}
+      <header className="p-4 md:p-6 border-b border-border bg-card/30 backdrop-blur-sm">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold text-foreground">
+              Bienvenido, {user.name.split(" ")[0]}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-1">
+              Selecciona un proyecto para comenzar
+            </p>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="hidden md:inline-block px-3 py-1.5 bg-primary/10 text-primary text-sm font-medium rounded-full border border-primary/20">
+              {user.role}
+            </span>
+            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center text-white font-semibold shadow-lg shadow-primary/25">
+              {user.name
+                .split(" ")
+                .map((n) => n[0])
+                .join("")
+                .slice(0, 2)}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="p-4 md:p-6 max-w-[1400px] mx-auto">
+        <CountrySection
+          country="Paraguay"
+          projects={projectsByCountry.Paraguay}
+          onProjectSelect={onProjectSelect}
+          delay={0.1}
+        />
+
+        <CountrySection
+          country="Uruguay"
+          projects={projectsByCountry.Uruguay}
+          onProjectSelect={onProjectSelect}
+          delay={0.3}
+        />
+      </main>
     </div>
   )
 }
