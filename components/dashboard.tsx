@@ -8,8 +8,17 @@ interface DashboardProps {
   onProjectSelect: (projectId: string) => void
 }
 
+interface ProjectType {
+  id: string
+  name: string
+  bgColor: string
+  textColor: string
+  logoText: string
+  subtitle?: string
+}
+
 // Proyectos organizados por pais
-const projectsByCountry = {
+const projectsByCountry: Record<string, ProjectType[]> = {
   Paraguay: [
     {
       id: "arcor-py",
@@ -100,8 +109,6 @@ const projectsByCountry = {
     },
   ],
 }
-
-type ProjectType = (typeof projectsByCountry.Paraguay)[0]
 
 function ProjectCard({
   project,

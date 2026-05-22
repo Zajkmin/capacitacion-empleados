@@ -20,6 +20,7 @@ import {
   Clock,
   Target,
   CheckCircle2,
+  type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 
@@ -38,7 +39,11 @@ export function Profile({ user, onBack }: ProfileProps) {
     { label: "Puntuación", value: "92%", icon: Award },
   ]
   
-  const menuSections = [
+  type MenuItem =
+    | { icon: LucideIcon; label: string; toggle: true; value: boolean; onChange: (value: boolean) => void }
+    | { icon: LucideIcon; label: string; info?: string }
+
+  const menuSections: { title: string; items: MenuItem[] }[] = [
     {
       title: "Preferencias",
       items: [
