@@ -4,7 +4,6 @@ import { motion } from "framer-motion"
 import {
   LayoutDashboard,
   BookOpen,
-  Library as LibraryIcon,
   Bell,
   Settings,
   LogOut,
@@ -25,6 +24,7 @@ interface SidebarProps {
 
 const navItems = [
   { id: "dashboard" as ViewType, icon: LayoutDashboard, label: "Inicio" },
+  { id: "training" as ViewType, icon: BookOpen, label: "Capacitación" },
   { id: "updates" as ViewType, icon: Bell, label: "Actualizaciones" },
   { id: "profile" as ViewType, icon: Settings, label: "Mi Perfil" },
 ]

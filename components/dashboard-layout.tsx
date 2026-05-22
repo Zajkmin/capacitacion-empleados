@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/sidebar"
 import { Dashboard } from "@/components/dashboard"
 import { ProjectView } from "@/components/project-view"
+import { Training } from "./training"
 import { Updates } from "@/components/updates"
 import { Profile } from "@/components/profile"
 import { MobileNav } from "@/components/mobile-nav"
@@ -17,6 +18,7 @@ interface DashboardLayoutProps {
 export type ViewType = 
   | "dashboard" 
   | "project" 
+  | "training" 
   | "updates" 
   | "profile"
 
@@ -47,6 +49,8 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
             onNavigate={setCurrentView}
           />
         )
+      case "training":
+        return <Training user={user} onBack={handleBackToDashboard} />
       case "updates":
         return <Updates onBack={handleBackToDashboard} />
       case "profile":
