@@ -2,8 +2,6 @@
 
 import {
   LayoutDashboard,
-  BookOpen,
-  Library as LibraryIcon,
   Bell,
   LogOut,
 } from "lucide-react"
@@ -17,7 +15,6 @@ interface MobileNavProps {
 
 const navItems = [
   { id: "dashboard" as ViewType, icon: LayoutDashboard, label: "Inicio" },
-  { id: "library" as ViewType, icon: LibraryIcon, label: "Biblioteca" },
   { id: "updates" as ViewType, icon: Bell, label: "Alertas" },
 ]
 

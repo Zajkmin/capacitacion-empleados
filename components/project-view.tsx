@@ -11,8 +11,10 @@ import {
   ChevronRight,
   XCircle,
   Lightbulb,
+  FolderOpen,
 } from "lucide-react"
 import { VisualLearning } from "@/components/visual-learning"
+import { Library } from "@/components/library"
 import type { ViewType } from "@/components/dashboard-layout"
 
 interface ProjectViewProps {
@@ -55,6 +57,13 @@ const mainSections = [
     color: "bg-violet-500",
   },
   {
+    id: "library",
+    icon: FolderOpen,
+    title: "Biblioteca",
+    description: "Recursos y documentos del proyecto",
+    color: "bg-slate-500",
+  },
+  {
     id: "photos",
     icon: Camera,
     title: "Fotos Guia",
@@ -86,6 +95,9 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
   if (activeSection) {
     if (activeSection === "visual-learning") {
       return <VisualLearning onBack={() => setActiveSection(null)} />
+    }
+    if (activeSection === "library") {
+      return <Library onBack={() => setActiveSection(null)} />
     }
 
     return (

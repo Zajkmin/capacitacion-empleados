@@ -25,7 +25,6 @@ interface SidebarProps {
 
 const navItems = [
   { id: "dashboard" as ViewType, icon: LayoutDashboard, label: "Inicio" },
-  { id: "library" as ViewType, icon: LibraryIcon, label: "Biblioteca" },
   { id: "updates" as ViewType, icon: Bell, label: "Actualizaciones" },
   { id: "profile" as ViewType, icon: Settings, label: "Mi Perfil" },
 ]
