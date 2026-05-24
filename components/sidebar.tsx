@@ -10,8 +10,10 @@ import {
   User,
   ChevronLeft,
   ChevronRight,
+  Lock,
 } from "lucide-react"
 import type { ViewType } from "@/components/dashboard-layout"
+import { hasPermission } from "@/lib/roles-permissions"
 
 interface SidebarProps {
   user: { name: string; email: string; role: string }
@@ -27,6 +29,7 @@ const navItems = [
   { id: "training" as ViewType, icon: BookOpen, label: "Capacitación" },
   { id: "updates" as ViewType, icon: Bell, label: "Actualizaciones" },
   { id: "profile" as ViewType, icon: Settings, label: "Mi Perfil" },
+  { id: "admin" as ViewType, icon: Lock, label: "Administración", adminOnly: true },
 ]
 
 export function Sidebar({
@@ -83,6 +86,10 @@ export function Sidebar({
       <nav className="flex-1 p-3 overflow-y-auto">
         <ul className="space-y-1">
           {navItems.map((item) => {
+            // Si el item es solo para admins, verificar permisos
+            if ((item as any).adminOnly && user.role !== "admin") {
+              return null
+            }
             const isActive = currentView === item.id
             return (
               <li key={item.id}>

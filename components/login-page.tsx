@@ -5,9 +5,10 @@ import { motion } from "framer-motion"
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { type UserRole, roleMetadata } from "@/lib/roles-permissions"
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string) => void
+  onLogin: (email: string, password: string, role: UserRole) => void
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -15,13 +16,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [selectedRole, setSelectedRole] = useState<UserRole>("supervisor")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
     // Simulate API call
     await new Promise((resolve) => setTimeout(resolve, 1000))
-    onLogin(email, password)
+    onLogin(email, password, selectedRole)
   }
 
   return (
@@ -161,6 +163,25 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                     {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
                   </button>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-sm font-medium text-foreground">
+                  Rol de acceso
+                </label>
+                <select
+                  value={selectedRole}
+                  onChange={(e) => setSelectedRole(e.target.value as UserRole)}
+                  className="w-full h-12 px-4 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:border-primary focus:ring-primary/20 transition-all duration-200"
+                >
+                  <option value="admin">{roleMetadata.admin.label}</option>
+                  <option value="supervisor">{roleMetadata.supervisor.label}</option>
+                  <option value="operario">{roleMetadata.operario.label}</option>
+                  <option value="especialista">{roleMetadata.especialista.label}</option>
+                </select>
+                <p className="text-xs text-muted-foreground">
+                  {roleMetadata[selectedRole].description}
+                </p>
               </div>
               
               <div className="flex items-center justify-between text-sm">

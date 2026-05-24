@@ -8,6 +8,7 @@ import { ProjectView } from "@/components/project-view"
 import { Training } from "./training"
 import { Updates } from "@/components/updates"
 import { Profile } from "@/components/profile"
+import { AdminPanel } from "@/components/admin-panel"
 import { MobileNav } from "@/components/mobile-nav"
 
 interface DashboardLayoutProps {
@@ -21,6 +22,7 @@ export type ViewType =
   | "training" 
   | "updates" 
   | "profile"
+  | "admin"
 
 export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
@@ -47,6 +49,7 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
             projectId={selectedProject!} 
             onBack={handleBackToDashboard}
             onNavigate={setCurrentView}
+            user={user}
           />
         )
       case "training":
@@ -55,6 +58,8 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
         return <Updates onBack={handleBackToDashboard} />
       case "profile":
         return <Profile user={user} onBack={handleBackToDashboard} />
+      case "admin":
+        return <AdminPanel onBack={handleBackToDashboard} />
       default:
         return <Dashboard user={user} onProjectSelect={handleProjectSelect} />
     }
