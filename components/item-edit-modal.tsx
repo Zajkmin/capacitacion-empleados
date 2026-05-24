@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
-import { X } from "lucide-react"
+import { ImagePlus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -67,6 +67,18 @@ export function ItemEditModal({
     setImageUrl("")
   }
 
+  const handleImageUpload = (file?: File) => {
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setImageUrl(reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
   const handleClose = () => {
     resetForm()
     onClose()
@@ -84,9 +96,12 @@ export function ItemEditModal({
       itemData.validUntil = validUntil.trim() || "Permanente"
     } else if (itemType === "update") {
       itemData.date = date
+    }
+
+    if (imageUrl.trim()) {
+      itemData.imageUrl = imageUrl.trim()
     } else if (itemType === "photo") {
       itemData.imageUrl =
-        imageUrl.trim() ||
         `https://placehold.co/800x450?text=${encodeURIComponent(title.trim())}`
     }
 
@@ -171,11 +186,11 @@ export function ItemEditModal({
             </div>
           )}
 
-          {itemType === "photo" && (
-            <div>
-              <label className="block text-sm font-medium text-foreground mb-2">
-                URL de la imagen
-              </label>
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Imagen de referencia
+            </label>
+            <div className="grid gap-3">
               <Input
                 type="url"
                 value={imageUrl}
@@ -183,6 +198,34 @@ export function ItemEditModal({
                 placeholder="https://ejemplo.com/foto.jpg"
                 className="w-full"
               />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(e) => handleImageUpload(e.target.files?.[0])}
+                className="w-full"
+              />
+              <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
+                {imageUrl ? (
+                  <img
+                    src={imageUrl}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <ImagePlus className="h-8 w-8" />
+                    <span className="text-sm">Vista previa de la imagen</span>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {itemType === "photo" && (
+            <div>
+              <p className="text-xs text-muted-foreground">
+                Puedes usar una URL o subir una imagen local para simular la carga a base de datos.
+              </p>
             </div>
           )}
 

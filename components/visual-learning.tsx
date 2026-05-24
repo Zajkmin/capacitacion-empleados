@@ -33,10 +33,12 @@ interface Comparison {
   correct: {
     label: string
     points: string[]
+    imageUrl?: string
   }
   incorrect: {
     label: string
     points: string[]
+    imageUrl?: string
   }
   tip: string
 }
@@ -276,11 +278,13 @@ export function VisualLearning({
                 variant="correct"
                 label={currentComparison.correct.label}
                 points={currentComparison.correct.points}
+                imageUrl={currentComparison.correct.imageUrl}
               />
               <ComparisonPanel
                 variant="incorrect"
                 label={currentComparison.incorrect.label}
                 points={currentComparison.incorrect.points}
+                imageUrl={currentComparison.incorrect.imageUrl}
               />
             </div>
 
@@ -379,10 +383,12 @@ function ComparisonPanel({
   variant,
   label,
   points,
+  imageUrl,
 }: {
   variant: "correct" | "incorrect"
   label: string
   points: string[]
+  imageUrl?: string
 }) {
   const isCorrect = variant === "correct"
   const Icon = isCorrect ? CheckCircle2 : XCircle
@@ -408,10 +414,14 @@ function ComparisonPanel({
       </div>
 
       <div className={`aspect-video rounded-xl ${imageClass} border flex items-center justify-center mb-4 relative group cursor-pointer`}>
-        <div className="text-center">
-          <Eye className={`w-12 h-12 ${toneClass} opacity-50 mx-auto mb-2`} />
-          <p className={`text-sm ${toneClass} opacity-70`}>Imagen de referencia</p>
-        </div>
+        {imageUrl ? (
+          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <div className="text-center">
+            <Eye className={`w-12 h-12 ${toneClass} opacity-50 mx-auto mb-2`} />
+            <p className={`text-sm ${toneClass} opacity-70`}>Imagen de referencia</p>
+          </div>
+        )}
         <button className={`absolute top-3 right-3 p-2 rounded-lg ${bgClass} opacity-0 group-hover:opacity-100 transition-opacity`}>
           <ZoomIn className={`w-4 h-4 ${toneClass}`} />
         </button>
@@ -452,6 +462,8 @@ function ComparisonEditModal({
   const [description, setDescription] = useState("")
   const [correctPoints, setCorrectPoints] = useState("")
   const [incorrectPoints, setIncorrectPoints] = useState("")
+  const [correctImageUrl, setCorrectImageUrl] = useState("")
+  const [incorrectImageUrl, setIncorrectImageUrl] = useState("")
   const [tip, setTip] = useState("")
 
   useEffect(() => {
@@ -461,8 +473,25 @@ function ComparisonEditModal({
     setDescription(comparison?.description || "")
     setCorrectPoints(comparison?.correct.points.join("\n") || "")
     setIncorrectPoints(comparison?.incorrect.points.join("\n") || "")
+    setCorrectImageUrl(comparison?.correct.imageUrl || "")
+    setIncorrectImageUrl(comparison?.incorrect.imageUrl || "")
     setTip(comparison?.tip || "")
   }, [isOpen, comparison])
+
+  const handleImageUpload = (
+    file: File | undefined,
+    onLoad: (imageUrl: string) => void,
+  ) => {
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        onLoad(reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSave = () => {
     if (!title.trim() || !description.trim()) return
@@ -472,6 +501,7 @@ function ComparisonEditModal({
       description: description.trim(),
       correct: {
         label: "Correcto",
+        imageUrl: correctImageUrl.trim() || undefined,
         points: correctPoints
           .split("\n")
           .map((point) => point.trim())
@@ -479,6 +509,7 @@ function ComparisonEditModal({
       },
       incorrect: {
         label: "Incorrecto",
+        imageUrl: incorrectImageUrl.trim() || undefined,
         points: incorrectPoints
           .split("\n")
           .map((point) => point.trim())
@@ -556,6 +587,59 @@ function ComparisonEditModal({
                 placeholder="Un punto por línea"
                 className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
+            </div>
+          </div>
+
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-foreground">
+                Imagen correcta
+              </label>
+              <Input
+                type="url"
+                value={correctImageUrl}
+                onChange={(event) => setCorrectImageUrl(event.target.value)}
+                placeholder="https://ejemplo.com/correcto.jpg"
+              />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(event) =>
+                  handleImageUpload(event.target.files?.[0], setCorrectImageUrl)
+                }
+              />
+              <div className="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
+                {correctImageUrl ? (
+                  <img src={correctImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-sm text-muted-foreground">Vista previa</span>
+                )}
+              </div>
+            </div>
+            <div className="space-y-3">
+              <label className="block text-sm font-medium text-foreground">
+                Imagen incorrecta
+              </label>
+              <Input
+                type="url"
+                value={incorrectImageUrl}
+                onChange={(event) => setIncorrectImageUrl(event.target.value)}
+                placeholder="https://ejemplo.com/incorrecto.jpg"
+              />
+              <Input
+                type="file"
+                accept="image/*"
+                onChange={(event) =>
+                  handleImageUpload(event.target.files?.[0], setIncorrectImageUrl)
+                }
+              />
+              <div className="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
+                {incorrectImageUrl ? (
+                  <img src={incorrectImageUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-sm text-muted-foreground">Vista previa</span>
+                )}
+              </div>
             </div>
           </div>
 

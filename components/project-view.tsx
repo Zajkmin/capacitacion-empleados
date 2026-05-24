@@ -503,6 +503,13 @@ function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdi
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {rule.description}
               </p>
+              {rule.imageUrl && (
+                <img
+                  src={rule.imageUrl}
+                  alt=""
+                  className="mt-4 aspect-video w-full max-w-md rounded-xl object-cover"
+                />
+              )}
             </div>
             {(canEdit || canDelete) && (
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
@@ -618,6 +625,13 @@ function ExceptionsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; c
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {exception.description}
               </p>
+              {exception.imageUrl && (
+                <img
+                  src={exception.imageUrl}
+                  alt=""
+                  className="mt-4 aspect-video w-full max-w-md rounded-xl object-cover"
+                />
+              )}
             </div>
             {(canEdit || canDelete) && (
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
@@ -843,6 +857,13 @@ function ErrorsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {error.description}
               </p>
+              {error.imageUrl && (
+                <img
+                  src={error.imageUrl}
+                  alt=""
+                  className="mt-4 aspect-video w-full max-w-md rounded-xl object-cover"
+                />
+              )}
             </div>
             {(canEdit || canDelete) && (
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
@@ -949,6 +970,13 @@ function UpdatesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canE
               <p className="text-sm text-muted-foreground leading-relaxed">
                 {update.description}
               </p>
+              {update.imageUrl && (
+                <img
+                  src={update.imageUrl}
+                  alt=""
+                  className="mt-4 aspect-video w-full max-w-md rounded-xl object-cover"
+                />
+              )}
             </div>
             {(canEdit || canDelete) && (
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">

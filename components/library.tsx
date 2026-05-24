@@ -40,6 +40,8 @@ interface Resource {
   size: string
   date: string
   starred: boolean
+  previewUrl?: string
+  sourceUrl?: string
 }
 
 const categoryLabels: Record<ResourceCategory | "all", string> = {
@@ -351,9 +353,17 @@ function ResourceCard({
       transition={{ delay: index * 0.05 }}
     >
       <div className="flex items-start justify-between mb-4">
-        <div className={`w-12 h-12 rounded-xl ${colorClass} flex items-center justify-center`}>
-          <Icon className="w-6 h-6" />
-        </div>
+        {resource.previewUrl ? (
+          <img
+            src={resource.previewUrl}
+            alt=""
+            className="h-12 w-12 rounded-xl object-cover"
+          />
+        ) : (
+          <div className={`w-12 h-12 rounded-xl ${colorClass} flex items-center justify-center`}>
+            <Icon className="w-6 h-6" />
+          </div>
+        )}
         <ResourceActions
           resource={resource}
           canEdit={canEdit}
@@ -403,9 +413,17 @@ function ResourceRow({
       animate={{ opacity: 1, x: 0 }}
       transition={{ delay: index * 0.05 }}
     >
-      <div className={`w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0`}>
-        <Icon className="w-5 h-5" />
-      </div>
+      {resource.previewUrl ? (
+        <img
+          src={resource.previewUrl}
+          alt=""
+          className="h-10 w-10 flex-shrink-0 rounded-lg object-cover"
+        />
+      ) : (
+        <div className={`w-10 h-10 rounded-lg ${colorClass} flex items-center justify-center flex-shrink-0`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      )}
 
       <div className="flex-1 min-w-0">
         <h3 className="font-medium text-foreground truncate">{resource.title}</h3>
@@ -485,6 +503,8 @@ function ResourceEditModal({
   const [size, setSize] = useState(resource?.size || "")
   const [date, setDate] = useState(resource?.date || "")
   const [starred, setStarred] = useState(resource?.starred || false)
+  const [sourceUrl, setSourceUrl] = useState(resource?.sourceUrl || "")
+  const [previewUrl, setPreviewUrl] = useState(resource?.previewUrl || "")
 
   useEffect(() => {
     if (!isOpen) return
@@ -495,7 +515,38 @@ function ResourceEditModal({
     setSize(resource?.size || "")
     setDate(resource?.date || "")
     setStarred(resource?.starred || false)
+    setSourceUrl(resource?.sourceUrl || "")
+    setPreviewUrl(resource?.previewUrl || "")
   }, [isOpen, resource])
+
+  const handleFileUpload = (file?: File) => {
+    if (!file) return
+
+    setSize(`${Math.max(file.size / 1024 / 1024, 0.1).toFixed(1)} MB`)
+    setSourceUrl(file.name)
+
+    if (file.type.startsWith("image/")) {
+      const reader = new FileReader()
+      reader.onload = () => {
+        if (typeof reader.result === "string") {
+          setPreviewUrl(reader.result)
+        }
+      }
+      reader.readAsDataURL(file)
+    }
+  }
+
+  const handlePreviewUpload = (file?: File) => {
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setPreviewUrl(reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
 
   const handleSave = () => {
     if (!title.trim()) return
@@ -511,6 +562,8 @@ function ResourceEditModal({
         year: "numeric",
       }),
       starred,
+      sourceUrl: sourceUrl.trim() || undefined,
+      previewUrl: previewUrl.trim() || undefined,
     })
   }
 
@@ -600,6 +653,45 @@ function ResourceEditModal({
                 onChange={(event) => setDate(event.target.value)}
                 placeholder="Ej: 24 May 2026"
               />
+            </div>
+          </div>
+
+          <div className="grid gap-3">
+            <label className="block text-sm font-medium text-foreground">
+              Archivo o enlace del recurso
+            </label>
+            <Input
+              value={sourceUrl}
+              onChange={(event) => setSourceUrl(event.target.value)}
+              placeholder="https://ejemplo.com/recurso.pdf"
+            />
+            <Input
+              type="file"
+              onChange={(event) => handleFileUpload(event.target.files?.[0])}
+            />
+          </div>
+
+          <div className="grid gap-3">
+            <label className="block text-sm font-medium text-foreground">
+              Imagen de portada
+            </label>
+            <Input
+              type="url"
+              value={previewUrl}
+              onChange={(event) => setPreviewUrl(event.target.value)}
+              placeholder="https://ejemplo.com/portada.jpg"
+            />
+            <Input
+              type="file"
+              accept="image/*"
+              onChange={(event) => handlePreviewUpload(event.target.files?.[0])}
+            />
+            <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
+              {previewUrl ? (
+                <img src={previewUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <span className="text-sm text-muted-foreground">Vista previa de portada</span>
+              )}
             </div>
           </div>
 
