@@ -108,10 +108,24 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
   if (activeSection) {
     if (activeSection === "visual-learning") {
-      return <VisualLearning onBack={() => setActiveSection(null)} />
+      return (
+        <VisualLearning
+          onBack={() => setActiveSection(null)}
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     }
     if (activeSection === "library") {
-      return <Library onBack={() => setActiveSection(null)} />
+      return (
+        <Library
+          onBack={() => setActiveSection(null)}
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     }
 
     return (
@@ -671,7 +685,9 @@ function PhotosContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
       setPhotos([...photos, { 
         id: Date.now().toString(), 
         ...photoData,
-        imageUrl: "https://via.placeholder.com/400x300?text=" + photoData.title.replace(" ", "+")
+        imageUrl:
+          photoData.imageUrl ||
+          "https://placehold.co/800x450?text=" + encodeURIComponent(photoData.title),
       }])
     }
     setShowModal(false)

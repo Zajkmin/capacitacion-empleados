@@ -1,10 +1,10 @@
 "use client"
 
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useState } from "react"
 
 interface ItemEditModalProps {
   isOpen: boolean
@@ -36,32 +36,27 @@ export function ItemEditModal({
   const [description, setDescription] = useState(item?.description || "")
   const [validUntil, setValidUntil] = useState(item?.validUntil || "Permanente")
   const [date, setDate] = useState(item?.date || new Date().toISOString().split("T")[0])
+  const [imageUrl, setImageUrl] = useState(item?.imageUrl || "")
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setTitle(item?.title || "")
+    setDescription(item?.description || "")
+    setValidUntil(item?.validUntil || "Permanente")
+    setDate(item?.date || new Date().toISOString().split("T")[0])
+    setImageUrl(item?.imageUrl || "")
+  }, [isOpen, item])
 
   const getItemTypeLabel = () => {
     const labels: Record<string, string> = {
       rule: "Regla",
       exception: "Excepción",
-      photo: "Foto",
+      photo: "Foto Guía",
       error: "Error Frecuente",
       update: "Actualización",
     }
     return labels[itemType] || ""
-  }
-
-  const handleSave = () => {
-    const itemData: any = {
-      title,
-      description,
-    }
-
-    if (itemType === "exception") {
-      itemData.validUntil = validUntil
-    } else if (itemType === "update") {
-      itemData.date = date
-    }
-
-    onSave(itemData)
-    resetForm()
   }
 
   const resetForm = () => {
@@ -69,6 +64,34 @@ export function ItemEditModal({
     setDescription("")
     setValidUntil("Permanente")
     setDate(new Date().toISOString().split("T")[0])
+    setImageUrl("")
+  }
+
+  const handleClose = () => {
+    resetForm()
+    onClose()
+  }
+
+  const handleSave = () => {
+    if (!title.trim() || !description.trim()) return
+
+    const itemData: any = {
+      title: title.trim(),
+      description: description.trim(),
+    }
+
+    if (itemType === "exception") {
+      itemData.validUntil = validUntil.trim() || "Permanente"
+    } else if (itemType === "update") {
+      itemData.date = date
+    } else if (itemType === "photo") {
+      itemData.imageUrl =
+        imageUrl.trim() ||
+        `https://placehold.co/800x450?text=${encodeURIComponent(title.trim())}`
+    }
+
+    onSave(itemData)
+    handleClose()
   }
 
   if (!isOpen) return null
@@ -81,25 +104,21 @@ export function ItemEditModal({
         exit={{ opacity: 0, scale: 0.95 }}
         className="bg-card rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto"
       >
-        {/* Header */}
         <div className="flex items-center justify-between p-6 border-b border-border">
           <h2 className="text-2xl font-semibold text-foreground">
             {isNew ? `Nuevo ${getItemTypeLabel()}` : `Editar ${getItemTypeLabel()}`}
           </h2>
           <button
-            onClick={() => {
-              onClose()
-              resetForm()
-            }}
+            type="button"
+            onClick={handleClose}
+            aria-label="Cerrar modal"
             className="p-2 hover:bg-accent rounded-lg transition-colors"
           >
             <X className="w-5 h-5" />
           </button>
         </div>
 
-        {/* Form */}
         <div className="p-6 space-y-6">
-          {/* Title */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Título
@@ -112,7 +131,6 @@ export function ItemEditModal({
             />
           </div>
 
-          {/* Description */}
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
               Descripción
@@ -125,16 +143,15 @@ export function ItemEditModal({
             />
           </div>
 
-          {/* Conditional Fields */}
           {itemType === "exception" && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                Válido Hasta
+                Válido hasta
               </label>
               <Input
                 value={validUntil}
                 onChange={(e) => setValidUntil(e.target.value)}
-                placeholder="Ej: Permanente, 2025-12-31"
+                placeholder="Ej: Permanente, 2026-12-31"
                 className="w-full"
               />
             </div>
@@ -157,21 +174,18 @@ export function ItemEditModal({
           {itemType === "photo" && (
             <div>
               <label className="block text-sm font-medium text-foreground mb-2">
-                URL de la Imagen
+                URL de la imagen
               </label>
               <Input
                 type="url"
-                value={item?.imageUrl || ""}
-                onChange={(e) => {
-                  // This would be handled by parent component
-                }}
+                value={imageUrl}
+                onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="https://ejemplo.com/foto.jpg"
                 className="w-full"
               />
             </div>
           )}
 
-          {/* Actions */}
           <div className="flex gap-3 pt-4">
             <Button
               onClick={handleSave}
@@ -180,14 +194,7 @@ export function ItemEditModal({
             >
               {isNew ? "Crear" : "Guardar"} {getItemTypeLabel()}
             </Button>
-            <Button
-              onClick={() => {
-                onClose()
-                resetForm()
-              }}
-              variant="outline"
-              className="flex-1"
-            >
+            <Button onClick={handleClose} variant="outline" className="flex-1">
               Cancelar
             </Button>
           </div>

@@ -126,36 +126,36 @@ function ProjectCard({
       transition={{ duration: 0.2 }}
     >
       <div
-        className={`w-full aspect-[4/3] rounded-xl ${project.bgColor} flex items-center justify-center overflow-hidden relative shadow-lg group-hover:shadow-xl transition-all duration-300`}
+        className={`w-full aspect-[4/3] rounded-lg ${project.bgColor} flex items-center justify-center overflow-hidden relative shadow-md group-hover:shadow-lg transition-all duration-300`}
       >
         {/* Logo/Brand display */}
-        <div className="flex flex-col items-center justify-center p-4">
+        <div className="flex flex-col items-center justify-center p-3">
           {project.logoText.includes("|") ? (
             <div className="flex items-center gap-2">
-              <span className="text-xl md:text-2xl font-bold italic text-red-600">
+              <span className="text-base md:text-lg font-bold italic text-red-600">
                 Coca-Cola
               </span>
-              <span className="text-lg md:text-xl font-semibold text-blue-800">PARESA</span>
+              <span className="text-sm md:text-base font-semibold text-blue-800">PARESA</span>
             </div>
           ) : project.logoText === "pepsi" ? (
-            <div className="text-3xl md:text-4xl font-bold text-white italic">pepsi</div>
+            <div className="text-2xl md:text-3xl font-bold text-white italic">pepsi</div>
           ) : project.logoText === "cervepar" ? (
             <div className="flex items-center gap-1">
-              <span className="text-red-500 text-xl md:text-2xl">★</span>
-              <span className="text-xl md:text-2xl font-bold text-red-600">cervepar</span>
+              <span className="text-red-500 text-base md:text-lg">★</span>
+              <span className="text-base md:text-lg font-bold text-red-600">cervepar</span>
             </div>
           ) : project.logoText === "ARCOR" ? (
             <div
-              className={`text-2xl md:text-3xl font-bold ${project.textColor} tracking-wider`}
+              className={`text-xl md:text-2xl font-bold ${project.textColor} tracking-wider`}
             >
               ARCOR
             </div>
           ) : project.logoText === "FNC" ? (
-            <div className="w-12 h-12 md:w-16 md:h-16 rounded-full bg-white/90 flex items-center justify-center">
-              <span className="text-lg md:text-xl font-bold text-blue-800">FNC</span>
+            <div className="w-10 h-10 md:w-12 md:h-12 rounded-full bg-white/90 flex items-center justify-center">
+              <span className="text-base md:text-lg font-bold text-blue-800">FNC</span>
             </div>
           ) : (
-            <span className={`text-xl md:text-2xl font-bold ${project.textColor}`}>
+            <span className={`text-base md:text-lg font-bold ${project.textColor}`}>
               {project.logoText}
             </span>
           )}
@@ -202,11 +202,12 @@ function CountrySection({
       </div>
 
       {/* Glass Container */}
-      <div className="bg-card/50 backdrop-blur-sm border border-border rounded-2xl p-4 md:p-6">
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 md:gap-6">
+      <div className="bg-card/50 backdrop-blur-sm border border-border rounded-xl p-3 md:p-4">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-7 gap-3 md:gap-4">
           {projects.map((project, index) => (
             <motion.div
               key={project.id}
+              className="w-full max-w-36 justify-self-center"
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.3, delay: delay + index * 0.05 }}

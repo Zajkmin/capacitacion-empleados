@@ -10,9 +10,10 @@ import { Updates } from "@/components/updates"
 import { Profile } from "@/components/profile"
 import { AdminPanel } from "@/components/admin-panel"
 import { MobileNav } from "@/components/mobile-nav"
+import { type UserRole } from "@/lib/roles-permissions"
 
 interface DashboardLayoutProps {
-  user: { name: string; email: string; role: string }
+  user: { name: string; email: string; role: UserRole }
   onLogout: () => void
 }
 
