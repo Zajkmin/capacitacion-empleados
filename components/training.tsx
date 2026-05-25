@@ -22,7 +22,7 @@ const roleGuides: Record<string, {
   steps: string[]
   recommendations: string[]
 }> = {
-  "Encuestador": {
+  encuestador: {
     subtitle: "Funciones clave para el encuestador",
     intro: "Como encuestador, tu responsabilidad principal es obtener información precisa y atender al cliente con profesionalismo.",
     focus: [
@@ -45,7 +45,7 @@ const roleGuides: Record<string, {
       "Solicita permiso antes de tomar fotos o datos adicionales",
     ],
   },
-  "Supervisor de Campo": {
+  supervisor: {
     subtitle: "Rol y responsabilidades del supervisor",
     intro: "Como supervisor de campo, debes coordinar al equipo, asegurar la calidad del trabajo y apoyar en la resolución de incidencias.",
     focus: [
@@ -68,7 +68,7 @@ const roleGuides: Record<string, {
       "Documenta cualquier cambio o evento relevante",
     ],
   },
-  "Promotor": {
+  analista_calidad: {
     subtitle: "Guía práctica para promotores",
     intro: "El promotor debe asegurar la correcta exhibición de productos y ofrecer soporte al cliente en el punto de venta.",
     focus: [

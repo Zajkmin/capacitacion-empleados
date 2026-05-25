@@ -101,7 +101,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
   const displayName = projectName || projectData.name
   const displayColor = projectColor || projectData.color
-  const userRole = (user?.role || "operario") as UserRole
+  const userRole = (user?.role || "encuestador") as UserRole
   const canEdit = hasPermission(userRole, "edit_section")
   const canAdd = hasPermission(userRole, "add_section")
   const canDelete = hasPermission(userRole, "delete_section")

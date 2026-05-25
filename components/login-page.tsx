@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { type UserRole, roleMetadata } from "@/lib/roles-permissions"
+import { defaultRoles, type UserRole, roleMetadata } from "@/lib/roles-permissions"
 
 interface LoginPageProps {
   onLogin: (email: string, password: string, role: UserRole) => void
@@ -174,13 +174,14 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   onChange={(e) => setSelectedRole(e.target.value as UserRole)}
                   className="w-full h-12 px-4 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:border-primary focus:ring-primary/20 transition-all duration-200"
                 >
-                  <option value="admin">{roleMetadata.admin.label}</option>
-                  <option value="supervisor">{roleMetadata.supervisor.label}</option>
-                  <option value="operario">{roleMetadata.operario.label}</option>
-                  <option value="especialista">{roleMetadata.especialista.label}</option>
+                  {defaultRoles.map((role) => (
+                    <option key={role} value={role}>
+                      {roleMetadata[role].label}
+                    </option>
+                  ))}
                 </select>
                 <p className="text-xs text-muted-foreground">
-                  {roleMetadata[selectedRole].description}
+                  {roleMetadata[selectedRole]?.description}
                 </p>
               </div>
               
@@ -215,10 +216,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
             
             <div className="mt-8 pt-6 border-t border-border text-center">
               <p className="text-sm text-muted-foreground">
-                ¿No tienes cuenta?{" "}
-                <button className="text-primary hover:text-primary/80 font-medium transition-colors">
-                  Contacta a tu administrador
-                </button>
+                Las cuentas son creadas por el administrador.
               </p>
             </div>
           </div>
