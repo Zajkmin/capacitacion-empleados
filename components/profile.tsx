@@ -16,10 +16,7 @@ import {
   Smartphone,
   Globe,
   HelpCircle,
-  Award,
-  Clock,
   Target,
-  CheckCircle2,
   type LucideIcon,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
@@ -34,9 +31,6 @@ export function Profile({ user, onBack }: ProfileProps) {
   
   const stats = [
     { label: "Proyectos", value: "4", icon: Target },
-    { label: "Horas", value: "24h", icon: Clock },
-    { label: "Completados", value: "127", icon: CheckCircle2 },
-    { label: "Puntuación", value: "92%", icon: Award },
   ]
   
   type MenuItem =
@@ -115,7 +109,7 @@ export function Profile({ user, onBack }: ProfileProps) {
           </div>
           
           {/* Stats */}
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 gap-3">
             {stats.map((stat, index) => (
               <motion.div
                 key={stat.label}

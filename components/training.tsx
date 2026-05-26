@@ -1,220 +1,706 @@
 "use client"
 
+import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
-  BookOpen,
-  CheckCircle2,
-  ShieldCheck,
-  User,
-  ListChecks,
+  CalendarClock,
+  FileText,
+  ImagePlus,
+  LinkIcon,
+  Pencil,
+  PlayCircle,
+  Plus,
+  Search,
+  Trash2,
+  Users,
+  X,
 } from "lucide-react"
 
+import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import {
+  defaultRoles,
+  hasPermission,
+  roleMetadata,
+  type UserRole,
+} from "@/lib/roles-permissions"
+
 interface TrainingProps {
-  user: { name: string; email: string; role: string }
+  user: { name: string; email: string; role: UserRole }
   onBack: () => void
 }
 
-const roleGuides: Record<string, {
-  subtitle: string
-  intro: string
-  focus: string[]
-  steps: string[]
-  recommendations: string[]
-}> = {
-  encuestador: {
-    subtitle: "Funciones clave para el encuestador",
-    intro: "Como encuestador, tu responsabilidad principal es obtener información precisa y atender al cliente con profesionalismo.",
-    focus: [
-      "Realizar preguntas claras y neutrales",
-      "Registrar respuestas exactas sin interpretación personal",
-      "Mantener una actitud amable y respetuosa",
-      "Respetar la privacidad y el tiempo del encuestado",
-    ],
-    steps: [
-      "Presentarte con nombre y propósito de la visita",
-      "Verificar datos antes de iniciar la encuesta",
-      "Leer cada pregunta completa y asegurarte de que el encuestado entienda",
-      "No influenciar las respuestas ni emitir juicios",
-      "Agradecer al final y explicar el siguiente paso si aplica",
-    ],
-    recommendations: [
-      "Prepara el material antes de llegar al punto de venta",
-      "Usa un tono de voz cómodo y profesional",
-      "Mantén el equipo cargado y los formularios listos",
-      "Solicita permiso antes de tomar fotos o datos adicionales",
-    ],
-  },
-  supervisor: {
-    subtitle: "Rol y responsabilidades del supervisor",
-    intro: "Como supervisor de campo, debes coordinar al equipo, asegurar la calidad del trabajo y apoyar en la resolución de incidencias.",
-    focus: [
-      "Revisar el avance de las visitas y proyectos asignados",
-      "Apoyar y orientar a los encuestadores en terreno",
-      "Verificar que se sigan los estándares de la empresa",
-      "Generar reportes claros y oportunos",
-    ],
-    steps: [
-      "Revisar el plan de trabajo del día antes de salir",
-      "Asegurar que cada encuestador entienda su ruta y objetivos",
-      "Monitorear la calidad de los datos obtenidos",
-      "Intervenir cuando haya dudas o problemas técnicos",
-      "Brindar retroalimentación constructiva al equipo",
-    ],
-    recommendations: [
-      "Mantén comunicación constante con el equipo",
-      "Lleva copias de los protocoles y formatos necesarios",
-      "Prioriza la seguridad del equipo y del punto de venta",
-      "Documenta cualquier cambio o evento relevante",
-    ],
-  },
-  analista_calidad: {
-    subtitle: "Guía práctica para promotores",
-    intro: "El promotor debe asegurar la correcta exhibición de productos y ofrecer soporte al cliente en el punto de venta.",
-    focus: [
-      "Seguir el planograma establecido",
-      "Mantener la imagen del producto limpia y visible",
-      "Informar sobre promociones y materiales POP",
-      "Responder dudas básicas del personal de tienda",
-    ],
-    steps: [
-      "Verificar el estado de los exhibidores y materiales promocionales",
-      "Reponer productos según el esquema de exhibición",
-      "Asegurar que precios y etiquetado estén visibles",
-      "Reportar faltantes o daños de forma clara",
-      "Coordinar con el responsable de la tienda cuando sea necesario",
-    ],
-    recommendations: [
-      "Mantén una actitud proactiva y colaborativa",
-      "Respeta los horarios de atención de cada tienda",
-      "Usa uniforme y credenciales claramente visibles",
-      "Asegura que el material POP esté en buen estado",
-    ],
-  },
+type TrainingContentType = "text" | "photo" | "video" | "link" | "pdf"
+
+interface TrainingTopic {
+  id: string
+  title: string
+  category: UserRole | "general"
+  order: number
+  summary: string
+  body: string
+  contentType: TrainingContentType
+  mediaUrl?: string
+  visibleTo: UserRole[]
+  updatedAt: string
 }
 
-const defaultGuide = {
-  subtitle: "Capacitación general",
-  intro: "Aquí encontrarás instrucciones generales para desempeñarte con seguridad y profesionalismo en tu rol.",
-  focus: [
-    "Comprender tus tareas antes de iniciarlas",
-    "Mantener una comunicación clara y respetuosa",
-    "Seguir los protocolos y normas de la empresa",
-    "Entregar información verídica y documentada",
-  ],
-  steps: [
-    "Consulta tu ruta y objetivos diarios antes de salir",
-    "Revisa el material y equipo necesarios para el trabajo",
-    "Actúa con profesionalismo en cada visita",
-    "Reporta incidencias, resultados y cambios lo antes posible",
-  ],
-  recommendations: [
-    "Pregunta si tienes dudas sobre alguna tarea",
-    "Cuida tu presentación personal",
-    "Mantén tus herramientas y dispositivo en buen estado",
-    "Respeta la privacidad y el tiempo de quienes entrevistas o visitas",
-  ],
+const roleOptions = defaultRoles
+
+const contentTypeLabels: Record<TrainingContentType, string> = {
+  text: "Texto",
+  photo: "Foto",
+  video: "Video",
+  link: "Enlace",
+  pdf: "PDF",
+}
+
+const contentTypeIcons = {
+  text: FileText,
+  photo: ImagePlus,
+  video: PlayCircle,
+  link: LinkIcon,
+  pdf: FileText,
+}
+
+const initialTopics: TrainingTopic[] = [
+  {
+    id: "1",
+    title: "Inicio de jornada y preparacion",
+    category: "general",
+    order: 1,
+    summary: "Checklist basico antes de salir a campo.",
+    body: "Revisa tu ruta, bateria del dispositivo, materiales requeridos y objetivos del dia. Confirma que comprendes el proyecto asignado antes de iniciar visitas.",
+    contentType: "text",
+    visibleTo: ["supervisor", "encuestador", "analista_calidad"],
+    updatedAt: "2026-05-20",
+  },
+  {
+    id: "2",
+    title: "Registro correcto de evidencias",
+    category: "encuestador",
+    order: 2,
+    summary: "Como tomar fotos y cargar informacion sin errores.",
+    body: "Las fotos deben mostrar el producto o exhibicion completa, sin cortes importantes y con buena iluminacion. Si una evidencia no es clara, repitela antes de cerrar la visita.",
+    contentType: "photo",
+    mediaUrl: "https://placehold.co/900x500?text=Evidencia+Correcta",
+    visibleTo: ["encuestador", "supervisor", "analista_calidad"],
+    updatedAt: "2026-05-22",
+  },
+  {
+    id: "3",
+    title: "Seguimiento de equipo",
+    category: "supervisor",
+    order: 1,
+    summary: "Pautas para coordinar, revisar y acompanar al equipo.",
+    body: "El supervisor debe validar avances, resolver bloqueos y documentar cambios relevantes. Prioriza casos con riesgo operativo o datos incompletos.",
+    contentType: "video",
+    mediaUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    visibleTo: ["supervisor", "admin"],
+    updatedAt: "2026-05-18",
+  },
+  {
+    id: "4",
+    title: "Criterios de revision de calidad",
+    category: "analista_calidad",
+    order: 1,
+    summary: "Guia para detectar inconsistencias en reportes.",
+    body: "Verifica coherencia entre respuestas, fotografias, horarios y ubicacion. Marca observaciones con lenguaje claro para que el equipo pueda corregir sin ambiguedad.",
+    contentType: "link",
+    mediaUrl: "https://example.com/guia-calidad",
+    visibleTo: ["analista_calidad", "admin"],
+    updatedAt: "2026-05-21",
+  },
+]
+
+function getRoleLabel(role: UserRole | "general") {
+  if (role === "general") return "General"
+  return roleMetadata[role]?.label ?? role
+}
+
+function sortTopics(topics: TrainingTopic[]) {
+  return [...topics].sort((a, b) => {
+    const categorySort = getRoleLabel(a.category).localeCompare(getRoleLabel(b.category))
+    if (categorySort !== 0) return categorySort
+    return a.order - b.order
+  })
 }
 
 export function Training({ user, onBack }: TrainingProps) {
-  const guide = roleGuides[user.role] ?? defaultGuide
+  const [topics, setTopics] = useState<TrainingTopic[]>(initialTopics)
+  const [query, setQuery] = useState("")
+  const [categoryFilter, setCategoryFilter] = useState<UserRole | "general" | "all">("all")
+  const [editingTopic, setEditingTopic] = useState<TrainingTopic | null>(null)
+  const [isModalOpen, setIsModalOpen] = useState(false)
+
+  const canAdd = hasPermission(user.role, "add_section")
+  const canEdit = hasPermission(user.role, "edit_section")
+  const canDelete = hasPermission(user.role, "delete_section")
+  const canManage = canAdd || canEdit || canDelete
+
+  const visibleTopics = useMemo(() => {
+    const normalizedQuery = query.trim().toLowerCase()
+
+    return sortTopics(
+      topics.filter((topic) => {
+        const roleCanSee =
+          user.role === "admin" || topic.visibleTo.includes(user.role)
+        const matchesCategory =
+          categoryFilter === "all" || topic.category === categoryFilter
+        const matchesQuery =
+          !normalizedQuery ||
+          topic.title.toLowerCase().includes(normalizedQuery) ||
+          topic.summary.toLowerCase().includes(normalizedQuery) ||
+          topic.body.toLowerCase().includes(normalizedQuery)
+
+        return roleCanSee && matchesCategory && matchesQuery
+      }),
+    )
+  }, [categoryFilter, query, topics, user.role])
+
+  const handleCreate = () => {
+    if (!canAdd) return
+    setEditingTopic(null)
+    setIsModalOpen(true)
+  }
+
+  const handleSaveTopic = (topicData: Omit<TrainingTopic, "id">) => {
+    if (editingTopic) {
+      setTopics((currentTopics) =>
+        currentTopics.map((topic) =>
+          topic.id === editingTopic.id ? { ...topic, ...topicData } : topic,
+        ),
+      )
+    } else {
+      setTopics((currentTopics) => [
+        ...currentTopics,
+        { id: Date.now().toString(), ...topicData },
+      ])
+    }
+
+    setIsModalOpen(false)
+    setEditingTopic(null)
+  }
+
+  const handleDeleteTopic = (topicId: string) => {
+    if (!canDelete) return
+    if (!confirm("¿Eliminar este tema de capacitacion?")) return
+
+    setTopics((currentTopics) =>
+      currentTopics.filter((topic) => topic.id !== topicId),
+    )
+  }
 
   return (
     <div className="min-h-screen pb-24 lg:pb-8">
-      <header className="sticky top-0 z-30 bg-background/80 backdrop-blur-lg border-b border-border">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="p-4 lg:px-8">
           <div className="flex items-center gap-4">
             <button
               onClick={onBack}
-              className="p-2 rounded-xl bg-card border border-border hover:bg-card/80 transition-colors"
+              className="rounded-xl border border-border bg-card p-2 transition-colors hover:bg-card/80"
+              aria-label="Volver"
             >
-              <ArrowLeft className="w-5 h-5" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
-            <div className="flex-1 min-w-0">
-              <h1 className="text-lg font-bold text-foreground">Capacitación</h1>
-              <p className="text-sm text-muted-foreground">Guía de acciones basadas en tu rol</p>
+            <div className="min-w-0 flex-1">
+              <h1 className="text-lg font-bold text-foreground">
+                Capacitacion
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Temas, guias y recursos visibles segun rol
+              </p>
             </div>
-            <div className="text-right">
-              <p className="text-sm text-muted-foreground">Rol asignado</p>
-              <p className="font-semibold text-foreground">{user.role}</p>
-            </div>
+            {canAdd ? (
+              <Button onClick={handleCreate} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Nuevo tema
+              </Button>
+            ) : null}
           </div>
         </div>
       </header>
 
-      <main className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
-        <motion.section
-          className="glass-card rounded-3xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3 }}
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-              <BookOpen className="w-6 h-6 text-primary" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">{guide.subtitle}</h2>
-              <p className="text-sm text-muted-foreground mt-1">{guide.intro}</p>
-            </div>
+      <main className="mx-auto max-w-6xl space-y-6 p-4 lg:p-8">
+        <section className="grid gap-3 rounded-lg border border-border bg-card/50 p-4 md:grid-cols-[1fr_220px]">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              className="pl-9"
+              placeholder="Buscar por titulo, resumen o contenido"
+            />
           </div>
+          <Select
+            value={categoryFilter}
+            onValueChange={(value) =>
+              setCategoryFilter(value as UserRole | "general" | "all")
+            }
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="Categoria" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Todas las categorias</SelectItem>
+              <SelectItem value="general">General</SelectItem>
+              {roleOptions.map((role) => (
+                <SelectItem key={role} value={role}>
+                  {getRoleLabel(role)}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </section>
 
-          <div className="grid gap-4 lg:grid-cols-2">
-            <div className="rounded-3xl border border-border p-5 bg-secondary/70">
-              <div className="flex items-center gap-3 mb-4">
-                <ShieldCheck className="w-5 h-5 text-foreground" />
-                <h3 className="font-semibold text-foreground">Puntos clave</h3>
-              </div>
-              <ul className="space-y-3">
-                {guide.focus.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-primary mt-1" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+        {visibleTopics.length ? (
+          <div className="grid gap-4">
+            {visibleTopics.map((topic, index) => {
+              const TypeIcon = contentTypeIcons[topic.contentType]
 
-            <div className="rounded-3xl border border-border p-5 bg-secondary/70">
-              <div className="flex items-center gap-3 mb-4">
-                <User className="w-5 h-5 text-foreground" />
-                <h3 className="font-semibold text-foreground">Recomendaciones</h3>
-              </div>
-              <ul className="space-y-3">
-                {guide.recommendations.map((item) => (
-                  <li key={item} className="flex items-start gap-3 text-sm text-muted-foreground">
-                    <CheckCircle2 className="w-4 h-4 text-primary mt-1" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
+              return (
+                <motion.article
+                  key={topic.id}
+                  className="rounded-lg border border-border bg-card p-5 shadow-sm"
+                  initial={{ opacity: 0, y: 14 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.04 }}
+                >
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                    <div className="min-w-0 flex-1">
+                      <div className="mb-3 flex flex-wrap items-center gap-2">
+                        <Badge variant="secondary">
+                          {getRoleLabel(topic.category)}
+                        </Badge>
+                        <Badge variant="outline">
+                          Orden {topic.order}
+                        </Badge>
+                        <Badge variant="outline" className="gap-1">
+                          <TypeIcon className="h-3 w-3" />
+                          {contentTypeLabels[topic.contentType]}
+                        </Badge>
+                      </div>
+                      <h2 className="text-xl font-semibold text-foreground">
+                        {topic.title}
+                      </h2>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        {topic.summary}
+                      </p>
+                    </div>
+
+                    <div className="flex items-center gap-2 lg:justify-end">
+                      {canEdit ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => {
+                            setEditingTopic(topic)
+                            setIsModalOpen(true)
+                          }}
+                          aria-label={`Editar ${topic.title}`}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                      {canDelete ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="icon-sm"
+                          onClick={() => handleDeleteTopic(topic.id)}
+                          aria-label={`Eliminar ${topic.title}`}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      ) : null}
+                    </div>
+                  </div>
+
+                  <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
+                    <p className="text-sm leading-relaxed text-foreground/80">
+                      {topic.body}
+                    </p>
+
+                    <TrainingMedia topic={topic} />
+                  </div>
+
+                  <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <CalendarClock className="h-3.5 w-3.5" />
+                      Actualizado {topic.updatedAt}
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <Users className="h-3.5 w-3.5" />
+                      Visible para {topic.visibleTo.map(getRoleLabel).join(", ")}
+                    </span>
+                  </div>
+                </motion.article>
+              )
+            })}
           </div>
-        </motion.section>
-
-        <motion.section
-          className="glass-card rounded-3xl p-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.3, delay: 0.1 }}
-        >
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-12 h-12 rounded-2xl bg-secondary flex items-center justify-center">
-              <ListChecks className="w-6 h-6 text-foreground" />
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold text-foreground">Qué hacer</h2>
-              <p className="text-sm text-muted-foreground mt-1">Sigue estos pasos para cumplir con tu rol de forma efectiva.</p>
-            </div>
+        ) : (
+          <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
+            <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+            <p className="font-medium text-foreground">
+              No hay temas disponibles
+            </p>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Ajusta la busqueda o crea contenido para este rol.
+            </p>
           </div>
+        )}
 
-          <ol className="space-y-4 pl-5 text-sm text-muted-foreground list-decimal">
-            {guide.steps.map((step) => (
-              <li key={step} className="leading-relaxed">{step}</li>
-            ))}
-          </ol>
-        </motion.section>
+        {canManage ? (
+          <p className="text-xs text-muted-foreground">
+            Los cambios se guardan en memoria hasta conectar el backend.
+          </p>
+        ) : null}
       </main>
+
+      <TrainingTopicModal
+        isOpen={isModalOpen}
+        topic={editingTopic}
+        onClose={() => {
+          setIsModalOpen(false)
+          setEditingTopic(null)
+        }}
+        onSave={handleSaveTopic}
+      />
+    </div>
+  )
+}
+
+function TrainingMedia({ topic }: { topic: TrainingTopic }) {
+  if (!topic.mediaUrl) {
+    return (
+      <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
+        Sin adjunto multimedia
+      </div>
+    )
+  }
+
+  if (topic.contentType === "photo") {
+    return (
+      <img
+        src={topic.mediaUrl}
+        alt=""
+        className="aspect-video w-full rounded-lg object-cover"
+      />
+    )
+  }
+
+  if (topic.contentType === "video") {
+    return (
+      <a
+        href={topic.mediaUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"
+      >
+        <PlayCircle className="h-5 w-5 text-primary" />
+        Abrir video
+      </a>
+    )
+  }
+
+  if (topic.contentType === "link" || topic.contentType === "pdf") {
+    return (
+      <a
+        href={topic.mediaUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"
+      >
+        {topic.contentType === "pdf" ? (
+          <FileText className="h-5 w-5 text-primary" />
+        ) : (
+          <LinkIcon className="h-5 w-5 text-primary" />
+        )}
+        Abrir recurso
+      </a>
+    )
+  }
+
+  return (
+    <div className="flex min-h-32 items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
+      Contenido de texto
+    </div>
+  )
+}
+
+function TrainingTopicModal({
+  isOpen,
+  topic,
+  onClose,
+  onSave,
+}: {
+  isOpen: boolean
+  topic: TrainingTopic | null
+  onClose: () => void
+  onSave: (topic: Omit<TrainingTopic, "id">) => void
+}) {
+  const [title, setTitle] = useState("")
+  const [category, setCategory] = useState<UserRole | "general">("general")
+  const [order, setOrder] = useState(1)
+  const [summary, setSummary] = useState("")
+  const [body, setBody] = useState("")
+  const [contentType, setContentType] = useState<TrainingContentType>("text")
+  const [mediaUrl, setMediaUrl] = useState("")
+  const [visibleTo, setVisibleTo] = useState<UserRole[]>(["encuestador"])
+  const [updatedAt, setUpdatedAt] = useState(new Date().toISOString().split("T")[0])
+
+  useEffect(() => {
+    if (!isOpen) return
+
+    setTitle(topic?.title ?? "")
+    setCategory(topic?.category ?? "general")
+    setOrder(topic?.order ?? 1)
+    setSummary(topic?.summary ?? "")
+    setBody(topic?.body ?? "")
+    setContentType(topic?.contentType ?? "text")
+    setMediaUrl(topic?.mediaUrl ?? "")
+    setVisibleTo(topic?.visibleTo ?? ["encuestador"])
+    setUpdatedAt(topic?.updatedAt ?? new Date().toISOString().split("T")[0])
+  }, [isOpen, topic])
+
+  const handleMediaUpload = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0]
+    if (!file) return
+
+    const reader = new FileReader()
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setMediaUrl(reader.result)
+      }
+    }
+    reader.readAsDataURL(file)
+  }
+
+  const toggleRole = (role: UserRole) => {
+    setVisibleTo((currentRoles) =>
+      currentRoles.includes(role)
+        ? currentRoles.filter((currentRole) => currentRole !== role)
+        : [...currentRoles, role],
+    )
+  }
+
+  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault()
+    if (!title.trim() || !summary.trim() || !body.trim() || !visibleTo.length) {
+      return
+    }
+
+    onSave({
+      title: title.trim(),
+      category,
+      order,
+      summary: summary.trim(),
+      body: body.trim(),
+      contentType,
+      mediaUrl: mediaUrl.trim() || undefined,
+      visibleTo,
+      updatedAt,
+    })
+  }
+
+  if (!isOpen) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="max-h-[90vh] w-full max-w-3xl overflow-y-auto rounded-lg bg-card shadow-xl"
+      >
+        <form onSubmit={handleSubmit}>
+          <div className="flex items-center justify-between border-b border-border p-5">
+            <h2 className="text-xl font-semibold text-foreground">
+              {topic ? "Editar tema" : "Nuevo tema"}
+            </h2>
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-lg p-2 transition-colors hover:bg-accent"
+              aria-label="Cerrar"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="grid gap-5 p-5">
+            <div className="grid gap-4 md:grid-cols-[1fr_140px]">
+              <div className="grid gap-2">
+                <label htmlFor="training-title" className="text-sm font-medium">
+                  Titulo
+                </label>
+                <Input
+                  id="training-title"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  placeholder="Ej: Como registrar evidencias"
+                />
+              </div>
+              <div className="grid gap-2">
+                <label htmlFor="training-order" className="text-sm font-medium">
+                  Orden
+                </label>
+                <Input
+                  id="training-order"
+                  type="number"
+                  min={1}
+                  value={order}
+                  onChange={(event) => setOrder(Number(event.target.value))}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Categoria</label>
+                <Select
+                  value={category}
+                  onValueChange={(value) =>
+                    setCategory(value as UserRole | "general")
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="general">General</SelectItem>
+                    {roleOptions.map((role) => (
+                      <SelectItem key={role} value={role}>
+                        {getRoleLabel(role)}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <label className="text-sm font-medium">Tipo</label>
+                <Select
+                  value={contentType}
+                  onValueChange={(value) =>
+                    setContentType(value as TrainingContentType)
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {Object.entries(contentTypeLabels).map(([value, label]) => (
+                      <SelectItem key={value} value={value}>
+                        {label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="grid gap-2">
+                <label htmlFor="training-date" className="text-sm font-medium">
+                  Actualizado
+                </label>
+                <Input
+                  id="training-date"
+                  type="date"
+                  value={updatedAt}
+                  onChange={(event) => setUpdatedAt(event.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor="training-summary" className="text-sm font-medium">
+                Resumen
+              </label>
+              <Input
+                id="training-summary"
+                value={summary}
+                onChange={(event) => setSummary(event.target.value)}
+                placeholder="Descripcion corta del tema"
+              />
+            </div>
+
+            <div className="grid gap-2">
+              <label htmlFor="training-body" className="text-sm font-medium">
+                Contenido
+              </label>
+              <textarea
+                id="training-body"
+                value={body}
+                onChange={(event) => setBody(event.target.value)}
+                rows={6}
+                placeholder="Explicacion completa del tema"
+                className="w-full resize-none rounded-lg border border-border bg-background px-4 py-2 text-foreground focus:outline-none focus:ring-2 focus:ring-primary"
+              />
+            </div>
+
+            <div className="grid gap-3">
+              <label className="text-sm font-medium">Adjunto multimedia</label>
+              <Input
+                value={mediaUrl}
+                onChange={(event) => setMediaUrl(event.target.value)}
+                placeholder="URL de video, imagen, enlace o PDF"
+              />
+              <Input
+                type="file"
+                accept="image/*,video/*,.pdf"
+                onChange={handleMediaUpload}
+              />
+            </div>
+
+            <div className="grid gap-3">
+              <p className="text-sm font-medium">Visibilidad por rol</p>
+              <div className="grid gap-2 sm:grid-cols-2">
+                {roleOptions.map((role) => (
+                  <label
+                    key={role}
+                    className="flex items-center gap-3 rounded-lg border border-border bg-background p-3 text-sm"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={visibleTo.includes(role)}
+                      onChange={() => toggleRole(role)}
+                      className="h-4 w-4"
+                    />
+                    <span>{getRoleLabel(role)}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex gap-3 border-t border-border p-5">
+            <Button type="button" variant="outline" onClick={onClose} className="flex-1">
+              Cancelar
+            </Button>
+            <Button
+              type="submit"
+              className="flex-1"
+              disabled={
+                !title.trim() ||
+                !summary.trim() ||
+                !body.trim() ||
+                !visibleTo.length
+              }
+            >
+              Guardar tema
+            </Button>
+          </div>
+        </form>
+      </motion.div>
     </div>
   )
 }
