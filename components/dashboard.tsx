@@ -30,6 +30,7 @@ import {
   type ProjectGroupRecord,
   type ProjectRecord,
 } from "@/lib/supabase/projects"
+import { uploadPublicFile } from "@/lib/supabase/storage"
 
 interface DashboardProps {
   user: { name: string; email: string; role: string }
@@ -253,6 +254,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
   const [projectName, setProjectName] = useState("")
   const [projectGroupId, setProjectGroupId] = useState("")
   const [projectCoverImage, setProjectCoverImage] = useState<string | undefined>()
+  const [projectCoverFile, setProjectCoverFile] = useState<File | null>(null)
   const canManageDashboard = user.role === "admin"
 
   useEffect(() => {
@@ -294,6 +296,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     setProjectName(`Proyecto ${nextProjectNumber}`)
     setProjectGroupId(groupId)
     setProjectCoverImage(undefined)
+    setProjectCoverFile(null)
     setIsProjectDialogOpen(true)
   }
 
@@ -304,6 +307,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     setProjectName(project.name)
     setProjectGroupId(groupId)
     setProjectCoverImage(project.coverImage)
+    setProjectCoverFile(null)
     setIsProjectDialogOpen(true)
   }
 
@@ -365,6 +369,13 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     if (!trimmedName || !projectGroupId) return
 
     try {
+      const uploadedCover = projectCoverFile
+        ? await uploadPublicFile({
+            bucket: "project-covers",
+            file: projectCoverFile,
+            folder: "projects",
+          })
+        : null
       const existingProject = groups
         .flatMap((group) => group.projects)
         .find((project) => project.id === editingProjectId)
@@ -376,7 +387,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
           existingProject?.bgColor ??
           projectColors[getNextProjectNumber(groups) % projectColors.length],
         textColor: existingProject?.textColor ?? "text-white",
-        coverImage: projectCoverImage,
+        coverImage: uploadedCover?.publicUrl ?? projectCoverImage,
         sortOrder: getNextProjectNumber(groups),
       })
 
@@ -400,6 +411,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
         })
       })
       setIsProjectDialogOpen(false)
+      setProjectCoverFile(null)
       setDashboardError("")
     } catch (error) {
       setDashboardError(
@@ -453,9 +465,11 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     const file = event.target.files?.[0]
     if (!file) {
       setProjectCoverImage(undefined)
+      setProjectCoverFile(null)
       return
     }
 
+    setProjectCoverFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === "string") {

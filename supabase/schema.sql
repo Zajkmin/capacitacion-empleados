@@ -135,6 +135,44 @@ create table if not exists public.section_items (
   updated_at timestamptz not null default now()
 );
 
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values
+  (
+    'project-covers',
+    'project-covers',
+    true,
+    5242880,
+    array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  ),
+  (
+    'section-images',
+    'section-images',
+    true,
+    10485760,
+    array['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+  ),
+  (
+    'documents',
+    'documents',
+    true,
+    20971520,
+    array[
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'image/jpeg',
+      'image/png',
+      'image/webp'
+    ]
+  )
+on conflict (id) do update
+set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
+
 insert into public.roles (id, label, description, color, permissions, locked)
 values
   (
@@ -474,4 +512,94 @@ to authenticated
 using (
   public.current_user_role() = 'admin'
   or 'delete_section' = any(public.current_user_permissions())
+);
+
+drop policy if exists "Authenticated users can read app storage" on storage.objects;
+create policy "Authenticated users can read app storage"
+on storage.objects
+for select
+to authenticated
+using (
+  bucket_id in ('project-covers', 'section-images', 'documents')
+);
+
+drop policy if exists "Admins can upload project covers" on storage.objects;
+create policy "Admins can upload project covers"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'project-covers'
+  and public.current_user_role() = 'admin'
+);
+
+drop policy if exists "Admins can update project covers" on storage.objects;
+create policy "Admins can update project covers"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'project-covers'
+  and public.current_user_role() = 'admin'
+)
+with check (
+  bucket_id = 'project-covers'
+  and public.current_user_role() = 'admin'
+);
+
+drop policy if exists "Admins can delete project covers" on storage.objects;
+create policy "Admins can delete project covers"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'project-covers'
+  and public.current_user_role() = 'admin'
+);
+
+drop policy if exists "Content editors can upload section files" on storage.objects;
+create policy "Content editors can upload section files"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id in ('section-images', 'documents')
+  and (
+    public.current_user_role() = 'admin'
+    or 'add_section' = any(public.current_user_permissions())
+    or 'edit_section' = any(public.current_user_permissions())
+  )
+);
+
+drop policy if exists "Content editors can update section files" on storage.objects;
+create policy "Content editors can update section files"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id in ('section-images', 'documents')
+  and (
+    public.current_user_role() = 'admin'
+    or 'edit_section' = any(public.current_user_permissions())
+  )
+)
+with check (
+  bucket_id in ('section-images', 'documents')
+  and (
+    public.current_user_role() = 'admin'
+    or 'edit_section' = any(public.current_user_permissions())
+  )
+);
+
+drop policy if exists "Content editors can delete section files" on storage.objects;
+create policy "Content editors can delete section files"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id in ('section-images', 'documents')
+  and (
+    public.current_user_role() = 'admin'
+    or 'delete_section' = any(public.current_user_permissions())
+  )
 );

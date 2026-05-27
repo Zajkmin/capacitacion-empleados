@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { ImagePlus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { uploadPublicFile } from "@/lib/supabase/storage"
 
 interface ItemEditModalProps {
   isOpen: boolean
@@ -37,6 +38,8 @@ export function ItemEditModal({
   const [validUntil, setValidUntil] = useState(item?.validUntil || "Permanente")
   const [date, setDate] = useState(item?.date || new Date().toISOString().split("T")[0])
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || "")
+  const [isUploadingImage, setIsUploadingImage] = useState(false)
+  const [uploadError, setUploadError] = useState("")
 
   useEffect(() => {
     if (!isOpen) return
@@ -46,6 +49,8 @@ export function ItemEditModal({
     setValidUntil(item?.validUntil || "Permanente")
     setDate(item?.date || new Date().toISOString().split("T")[0])
     setImageUrl(item?.imageUrl || "")
+    setUploadError("")
+    setIsUploadingImage(false)
   }, [isOpen, item])
 
   const getItemTypeLabel = () => {
@@ -65,18 +70,30 @@ export function ItemEditModal({
     setValidUntil("Permanente")
     setDate(new Date().toISOString().split("T")[0])
     setImageUrl("")
+    setUploadError("")
+    setIsUploadingImage(false)
   }
 
-  const handleImageUpload = (file?: File) => {
+  const handleImageUpload = async (file?: File) => {
     if (!file) return
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      if (typeof reader.result === "string") {
-        setImageUrl(reader.result)
-      }
+    setIsUploadingImage(true)
+    setUploadError("")
+
+    try {
+      const uploadedFile = await uploadPublicFile({
+        bucket: "section-images",
+        file,
+        folder: itemType,
+      })
+      setImageUrl(uploadedFile.publicUrl)
+    } catch (error) {
+      setUploadError(
+        error instanceof Error ? error.message : "No se pudo subir la imagen.",
+      )
+    } finally {
+      setIsUploadingImage(false)
     }
-    reader.readAsDataURL(file)
   }
 
   const handleClose = () => {
@@ -204,6 +221,14 @@ export function ItemEditModal({
                 onChange={(e) => handleImageUpload(e.target.files?.[0])}
                 className="w-full"
               />
+              {isUploadingImage ? (
+                <p className="text-xs text-muted-foreground">
+                  Subiendo imagen...
+                </p>
+              ) : null}
+              {uploadError ? (
+                <p className="text-xs text-destructive">{uploadError}</p>
+              ) : null}
               <div className="flex aspect-video w-full items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
                 {imageUrl ? (
                   <img
@@ -224,7 +249,7 @@ export function ItemEditModal({
           {itemType === "photo" && (
             <div>
               <p className="text-xs text-muted-foreground">
-                Puedes usar una URL o subir una imagen local para simular la carga a base de datos.
+                Puedes usar una URL o subir una imagen local al almacenamiento.
               </p>
             </div>
           )}
@@ -233,7 +258,7 @@ export function ItemEditModal({
             <Button
               onClick={handleSave}
               className="flex-1"
-              disabled={!title.trim() || !description.trim()}
+              disabled={!title.trim() || !description.trim() || isUploadingImage}
             >
               {isNew ? "Crear" : "Guardar"} {getItemTypeLabel()}
             </Button>
