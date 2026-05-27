@@ -89,11 +89,13 @@ function ProjectCard({
             />
           ) : null}
           <div className="absolute inset-0 bg-black/20 transition-colors group-hover:bg-black/30" />
-          <div className="relative flex flex-col items-center justify-center p-3 text-center">
-            <span className={`text-base font-bold md:text-lg ${project.textColor}`}>
-              {project.name}
-            </span>
-          </div>
+          {!project.coverImage ? (
+            <div className="relative flex flex-col items-center justify-center p-3 text-center">
+              <span className={`text-base font-bold md:text-lg ${project.textColor}`}>
+                {project.name}
+              </span>
+            </div>
+          ) : null}
         </div>
         <span className="mt-2 block max-w-full truncate text-sm text-foreground/70 transition-colors group-hover:text-foreground">
           {project.name}
