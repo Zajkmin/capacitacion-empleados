@@ -12,7 +12,7 @@ alter table public.profiles
 add column if not exists extra_permissions text[] not null default '{}';
 
 create table if not exists public.roles (
-  id text primary key,
+  id text primary key,    
   label text not null,
   description text not null default '',
   color text not null default 'bg-slate-600',
