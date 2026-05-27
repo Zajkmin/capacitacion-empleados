@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, type ChangeEvent, type FormEvent } from "react"
+import { useEffect, useState, type ChangeEvent, type FormEvent } from "react"
 import { motion } from "framer-motion"
 import { Building2, ImagePlus, Pencil, Plus, Trash2 } from "lucide-react"
 
@@ -21,25 +21,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select"
+import {
+  deleteCountry,
+  deleteProject,
+  listCountriesWithProjects,
+  saveCountry,
+  saveProject,
+  type CountryRecord,
+  type ProjectRecord,
+} from "@/lib/supabase/projects"
 
 interface DashboardProps {
   user: { name: string; email: string; role: string }
   onProjectSelect: (projectId: string) => void
 }
 
-interface ProjectType {
-  id: string
-  name: string
-  bgColor: string
-  textColor: string
-  coverImage?: string
-}
-
-interface CountryType {
-  id: string
-  name: string
-  projects: ProjectType[]
-}
+type ProjectType = ProjectRecord
+type CountryType = CountryRecord
 
 const projectColors = [
   "bg-sky-600",
@@ -52,28 +50,6 @@ const projectColors = [
   "bg-cyan-700",
   "bg-lime-700",
   "bg-orange-600",
-]
-
-function createProject(number: number, name = `Proyecto ${number}`): ProjectType {
-  return {
-    id: `proyecto-${number}`,
-    name,
-    bgColor: projectColors[(number - 1) % projectColors.length],
-    textColor: "text-white",
-  }
-}
-
-const initialCountries: CountryType[] = [
-  {
-    id: "pais-1",
-    name: "Pais 1",
-    projects: Array.from({ length: 10 }, (_, index) => createProject(index + 1)),
-  },
-  {
-    id: "pais-2",
-    name: "Pais 2",
-    projects: Array.from({ length: 5 }, (_, index) => createProject(index + 11)),
-  },
 ]
 
 function ProjectCard({
@@ -266,16 +242,42 @@ function CountrySection({
 }
 
 export function Dashboard({ user, onProjectSelect }: DashboardProps) {
-  const [countries, setCountries] = useState<CountryType[]>(initialCountries)
+  const [countries, setCountries] = useState<CountryType[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [dashboardError, setDashboardError] = useState("")
   const [isCountryDialogOpen, setIsCountryDialogOpen] = useState(false)
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false)
   const [editingCountryId, setEditingCountryId] = useState<string | null>(null)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
   const [countryName, setCountryName] = useState("")
   const [projectName, setProjectName] = useState("")
-  const [projectCountryId, setProjectCountryId] = useState(initialCountries[0].id)
+  const [projectCountryId, setProjectCountryId] = useState("")
   const [projectCoverImage, setProjectCoverImage] = useState<string | undefined>()
   const canManageDashboard = user.role === "admin"
+
+  useEffect(() => {
+    let isMounted = true
+
+    listCountriesWithProjects()
+      .then((storedCountries) => {
+        if (isMounted) setCountries(storedCountries)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setDashboardError(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar los proyectos.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const getNextProjectNumber = (currentCountries: CountryType[]) =>
     currentCountries.reduce(
@@ -321,63 +323,64 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     setIsCountryDialogOpen(true)
   }
 
-  const handleCountrySubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleCountrySubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canManageDashboard) return
 
     const trimmedName = countryName.trim()
     if (!trimmedName) return
 
-    if (editingCountryId) {
-      setCountries((currentCountries) =>
-        currentCountries.map((country) =>
-          country.id === editingCountryId
-            ? { ...country, name: trimmedName }
-            : country,
-        ),
-      )
+    try {
+      const savedCountry = await saveCountry({
+        id: editingCountryId ?? undefined,
+        name: trimmedName,
+        sortOrder: countries.length,
+      })
+
+      setCountries((currentCountries) => {
+        if (editingCountryId) {
+          return currentCountries.map((country) =>
+            country.id === editingCountryId
+              ? { ...country, name: savedCountry.name }
+              : country,
+          )
+        }
+
+        return [...currentCountries, savedCountry]
+      })
       setIsCountryDialogOpen(false)
-      return
+      setDashboardError("")
+    } catch (error) {
+      setDashboardError(
+        error instanceof Error ? error.message : "No se pudo guardar el pais.",
+      )
     }
-
-    setCountries((currentCountries) => {
-      const nextCountryNumber = currentCountries.length + 1
-
-      return [
-        ...currentCountries,
-        {
-          id: `pais-${nextCountryNumber}`,
-          name: trimmedName,
-          projects: [],
-        },
-      ]
-    })
-    setIsCountryDialogOpen(false)
   }
 
-  const handleProjectSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleProjectSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canManageDashboard) return
 
     const trimmedName = projectName.trim()
     if (!trimmedName || !projectCountryId) return
 
-    if (editingProjectId) {
+    try {
+      const existingProject = countries
+        .flatMap((country) => country.projects)
+        .find((project) => project.id === editingProjectId)
+      const savedProject = await saveProject({
+        id: editingProjectId ?? undefined,
+        countryId: projectCountryId,
+        name: trimmedName,
+        bgColor:
+          existingProject?.bgColor ??
+          projectColors[getNextProjectNumber(countries) % projectColors.length],
+        textColor: existingProject?.textColor ?? "text-white",
+        coverImage: projectCoverImage,
+        sortOrder: getNextProjectNumber(countries),
+      })
+
       setCountries((currentCountries) => {
-        const projectToEdit = currentCountries
-          .flatMap((country) => country.projects)
-          .find((project) => project.id === editingProjectId)
-
-        if (!projectToEdit) {
-          return currentCountries
-        }
-
-        const updatedProject = {
-          ...projectToEdit,
-          name: trimmedName,
-          coverImage: projectCoverImage,
-        }
-
         return currentCountries.map((country) => {
           const filteredProjects = country.projects.filter(
             (project) => project.id !== editingProjectId,
@@ -391,53 +394,59 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
             ...country,
             projects: [
               ...filteredProjects,
-              updatedProject,
+              savedProject,
             ],
           }
         })
       })
       setIsProjectDialogOpen(false)
-      return
-    }
-
-    setCountries((currentCountries) => {
-      const newProject = {
-        ...createProject(getNextProjectNumber(currentCountries), trimmedName),
-        coverImage: projectCoverImage,
-      }
-
-      return currentCountries.map((country) =>
-        country.id === projectCountryId
-          ? { ...country, projects: [...country.projects, newProject] }
-          : country,
+      setDashboardError("")
+    } catch (error) {
+      setDashboardError(
+        error instanceof Error ? error.message : "No se pudo guardar el proyecto.",
       )
-    })
-    setIsProjectDialogOpen(false)
+    }
   }
 
-  const handleCountryDelete = (countryId: string) => {
+  const handleCountryDelete = async (countryId: string) => {
     if (!canManageDashboard) return
 
-    setCountries((currentCountries) =>
-      currentCountries.filter((country) => country.id !== countryId),
-    )
+    try {
+      await deleteCountry(countryId)
+      setCountries((currentCountries) =>
+        currentCountries.filter((country) => country.id !== countryId),
+      )
+      setDashboardError("")
+    } catch (error) {
+      setDashboardError(
+        error instanceof Error ? error.message : "No se pudo eliminar el pais.",
+      )
+    }
   }
 
-  const handleProjectDelete = (countryId: string, projectId: string) => {
+  const handleProjectDelete = async (countryId: string, projectId: string) => {
     if (!canManageDashboard) return
 
-    setCountries((currentCountries) =>
-      currentCountries.map((country) =>
-        country.id === countryId
-          ? {
-              ...country,
-              projects: country.projects.filter(
-                (project) => project.id !== projectId,
-              ),
-            }
-          : country,
-      ),
-    )
+    try {
+      await deleteProject(projectId)
+      setCountries((currentCountries) =>
+        currentCountries.map((country) =>
+          country.id === countryId
+            ? {
+                ...country,
+                projects: country.projects.filter(
+                  (project) => project.id !== projectId,
+                ),
+              }
+            : country,
+        ),
+      )
+      setDashboardError("")
+    } catch (error) {
+      setDashboardError(
+        error instanceof Error ? error.message : "No se pudo eliminar el proyecto.",
+      )
+    }
   }
 
   const handleCoverImageChange = (event: ChangeEvent<HTMLInputElement>) => {
@@ -484,6 +493,24 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
       </header>
 
       <main className="mx-auto max-w-[1400px] p-4 md:p-6">
+        {dashboardError ? (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {dashboardError}
+          </div>
+        ) : null}
+
+        {isLoading ? (
+          <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+            Cargando proyectos...
+          </div>
+        ) : null}
+
+        {!isLoading && countries.length === 0 ? (
+          <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+            No hay paises ni proyectos cargados.
+          </div>
+        ) : null}
+
         {countries.map((country, index) => (
           <CountrySection
             key={country.id}

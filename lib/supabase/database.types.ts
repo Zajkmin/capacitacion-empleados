@@ -72,6 +72,111 @@ export interface Database {
         }
         Relationships: []
       }
+      countries: {
+        Row: {
+          id: string
+          name: string
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          name: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          name?: string
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      projects: {
+        Row: {
+          id: string
+          country_id: string
+          name: string
+          bg_color: string
+          text_color: string
+          cover_image: string | null
+          sort_order: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          country_id: string
+          name: string
+          bg_color?: string
+          text_color?: string
+          cover_image?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          country_id?: string
+          name?: string
+          bg_color?: string
+          text_color?: string
+          cover_image?: string | null
+          sort_order?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      project_sections: {
+        Row: {
+          id: string
+          project_id: string
+          title: string
+          description: string
+          type: string
+          content: string | null
+          color: string
+          sort_order: number
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          project_id: string
+          title: string
+          description?: string
+          type?: string
+          content?: string | null
+          color?: string
+          sort_order?: number
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string
+          title?: string
+          description?: string
+          type?: string
+          content?: string | null
+          color?: string
+          sort_order?: number
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

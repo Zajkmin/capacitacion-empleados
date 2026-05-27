@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
@@ -24,8 +24,14 @@ import type { ViewType } from "@/components/dashboard-layout"
 import {
   userHasPermission,
   type Permission,
+  type SectionType,
   type UserRole,
 } from "@/lib/roles-permissions"
+import {
+  deleteProjectSection,
+  listProjectSections,
+  saveProjectSection,
+} from "@/lib/supabase/projects"
 
 interface ProjectViewProps {
   projectId: string
@@ -33,7 +39,13 @@ interface ProjectViewProps {
   projectColor?: string
   onBack: () => void
   onNavigate: (view: ViewType) => void
-  user?: { name: string; email: string; role: UserRole; permissions?: Permission[] }
+  user?: {
+    id?: string
+    name: string
+    email: string
+    role: UserRole
+    permissions?: Permission[]
+  }
 }
 
 const projectData = {
@@ -48,6 +60,7 @@ const projectData = {
 const mainSections = [
   {
     id: "rules",
+    type: "rules" as SectionType,
     icon: BookOpen,
     title: "Reglas del Proyecto",
     description: "Normativas y procedimientos a seguir",
@@ -55,6 +68,7 @@ const mainSections = [
   },
   {
     id: "exceptions",
+    type: "exceptions" as SectionType,
     icon: AlertTriangle,
     title: "Excepciones",
     description: "Casos especiales y permisos",
@@ -62,6 +76,7 @@ const mainSections = [
   },
   {
     id: "visual-learning",
+    type: "visual-learning" as SectionType,
     icon: Lightbulb,
     title: "Aprendizaje Visual",
     description: "Comparativas y ejemplos ilustrados",
@@ -69,6 +84,7 @@ const mainSections = [
   },
   {
     id: "library",
+    type: "library" as SectionType,
     icon: FolderOpen,
     title: "Biblioteca",
     description: "Recursos y documentos del proyecto",
@@ -76,6 +92,7 @@ const mainSections = [
   },
   {
     id: "photos",
+    type: "photos" as SectionType,
     icon: Camera,
     title: "Fotos Guia",
     description: "Referencias visuales de ejecucion",
@@ -83,6 +100,7 @@ const mainSections = [
   },
   {
     id: "errors",
+    type: "errors" as SectionType,
     icon: XCircle,
     title: "Errores Frecuentes",
     description: "Que evitar en campo",
@@ -90,6 +108,7 @@ const mainSections = [
   },
   {
     id: "updates",
+    type: "updates" as SectionType,
     icon: RefreshCw,
     title: "Actualizaciones",
     description: "Cambios y novedades recientes",
@@ -97,11 +116,38 @@ const mainSections = [
   },
 ]
 
+const sectionIcons = Object.fromEntries(
+  mainSections.map((section) => [section.type, section.icon]),
+) as Record<SectionType, typeof BookOpen>
+
+type ProjectSectionView = {
+  id: string
+  type: SectionType
+  icon: typeof BookOpen
+  title: string
+  description: string
+  color: string
+  content?: string
+}
+
+function withSectionIcon(
+  section: Omit<ProjectSectionView, "icon">,
+): ProjectSectionView {
+  return {
+    ...section,
+    icon: sectionIcons[section.type] ?? BookOpen,
+  }
+}
+
 export function ProjectView({ projectId, projectName, projectColor, onBack, onNavigate, user }: ProjectViewProps) {
   const [activeSection, setActiveSection] = useState<string | null>(null)
-  const [sections, setSections] = useState(mainSections)
+  const [sections, setSections] = useState<ProjectSectionView[]>(
+    mainSections.map(withSectionIcon),
+  )
+  const [isLoadingSections, setIsLoadingSections] = useState(true)
+  const [sectionError, setSectionError] = useState("")
   const [showEditModal, setShowEditModal] = useState(false)
-  const [editingSection, setEditingSection] = useState<any>(null)
+  const [editingSection, setEditingSection] = useState<ProjectSectionView | null>(null)
 
   const displayName = projectName || projectData.name
   const displayColor = projectColor || projectData.color
@@ -116,8 +162,35 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
     ? userHasPermission(user, "delete_section")
     : false
 
+  useEffect(() => {
+    let isMounted = true
+
+    listProjectSections(projectId)
+      .then((storedSections) => {
+        if (isMounted) setSections(storedSections.map(withSectionIcon))
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setSectionError(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar las secciones.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoadingSections(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [projectId])
+
   if (activeSection) {
-    if (activeSection === "visual-learning") {
+    const currentSection = sections.find((section) => section.id === activeSection)
+    if (!currentSection) return null
+
+    if (currentSection.type === "visual-learning") {
       return (
         <VisualLearning
           onBack={() => setActiveSection(null)}
@@ -127,7 +200,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
         />
       )
     }
-    if (activeSection === "library") {
+    if (currentSection.type === "library") {
       return (
         <Library
           onBack={() => setActiveSection(null)}
@@ -141,6 +214,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
     return (
       <SectionDetail
         sectionId={activeSection}
+        section={currentSection}
         onBack={() => setActiveSection(null)}
         projectName={displayName}
         onEdit={() => {
@@ -150,8 +224,19 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
         }}
         onDelete={() => {
           if (confirm("¿Está seguro de que desea eliminar esta sección?")) {
-            setSections(sections.filter((s) => s.id !== activeSection))
-            setActiveSection(null)
+            deleteProjectSection(activeSection)
+              .then(() => {
+                setSections(sections.filter((s) => s.id !== activeSection))
+                setActiveSection(null)
+                setSectionError("")
+              })
+              .catch((error) => {
+                setSectionError(
+                  error instanceof Error
+                    ? error.message
+                    : "No se pudo eliminar la seccion.",
+                )
+              })
           }
         }}
         canEdit={canEdit}
@@ -162,18 +247,47 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
     )
   }
 
-  const handleSaveSection = (sectionData: any) => {
-    if (editingSection) {
-      setSections(
-        sections.map((s) =>
-          s.id === editingSection.id ? { ...s, ...sectionData } : s
+  const handleSaveSection = async (sectionData: {
+    title: string
+    description: string
+    type: SectionType
+    content?: string
+  }) => {
+    try {
+      const savedSection = await saveProjectSection({
+        id: editingSection?.id,
+        projectId,
+        title: sectionData.title,
+        description: sectionData.description,
+        type: sectionData.type,
+        content: sectionData.content,
+        sortOrder: editingSection
+          ? sections.findIndex((section) => section.id === editingSection.id)
+          : sections.length,
+        userId: user && "id" in user ? String(user.id) : undefined,
+      })
+      const viewSection = withSectionIcon(savedSection)
+
+      if (editingSection) {
+        setSections(
+          sections.map((section) =>
+            section.id === editingSection.id ? viewSection : section,
+          ),
         )
+      } else {
+        setSections([...sections, viewSection])
+      }
+
+      setShowEditModal(false)
+      setEditingSection(null)
+      setSectionError("")
+    } catch (error) {
+      setSectionError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la seccion.",
       )
-    } else {
-      setSections([...sections, { id: Date.now().toString(), ...sectionData }])
     }
-    setShowEditModal(false)
-    setEditingSection(null)
   }
 
   return (
@@ -224,6 +338,18 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
       {/* Main Content */}
       <main className="p-4 lg:p-8 max-w-5xl mx-auto">
+        {sectionError ? (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {sectionError}
+          </div>
+        ) : null}
+
+        {isLoadingSections ? (
+          <div className="mb-4 rounded-lg border border-border bg-card/50 p-4 text-sm text-muted-foreground">
+            Cargando secciones...
+          </div>
+        ) : null}
+
         {/* Project Description */}
         <div className="mb-8">
           <p className="text-muted-foreground leading-relaxed">
@@ -291,9 +417,20 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
                               "¿Está seguro de que desea eliminar esta sección?"
                             )
                           ) {
-                            setSections(
-                              sections.filter((s) => s.id !== section.id)
-                            )
+                            deleteProjectSection(section.id)
+                              .then(() => {
+                                setSections(
+                                  sections.filter((s) => s.id !== section.id),
+                                )
+                                setSectionError("")
+                              })
+                              .catch((error) => {
+                                setSectionError(
+                                  error instanceof Error
+                                    ? error.message
+                                    : "No se pudo eliminar la seccion.",
+                                )
+                              })
                           }
                         }}
                         className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
@@ -326,6 +463,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
 function SectionDetail({
   sectionId,
+  section,
   onBack,
   projectName,
   onEdit,
@@ -336,6 +474,7 @@ function SectionDetail({
   userRole,
 }: {
   sectionId: string
+  section: ProjectSectionView
   onBack: () => void
   projectName: string
   onEdit?: () => void
@@ -345,10 +484,6 @@ function SectionDetail({
   canAdd?: boolean
   userRole?: UserRole
 }) {
-  const section = mainSections.find((s) => s.id === sectionId)
-
-  if (!section) return null
-
   return (
     <div className="min-h-screen pb-24 lg:pb-8">
       {/* Header */}
@@ -400,7 +535,7 @@ function SectionDetail({
       {/* Content */}
       <main className="p-4 lg:p-8 max-w-4xl mx-auto">
         <SectionContent 
-          sectionId={sectionId} 
+          sectionId={section.type} 
           canAdd={canAdd}
           canEdit={canEdit}
           canDelete={canDelete}
