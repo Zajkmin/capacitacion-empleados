@@ -11,9 +11,10 @@ export interface ProjectRecord {
   coverImage?: string
 }
 
-export interface CountryRecord {
+export interface ProjectGroupRecord {
   id: string
   name: string
+  type: string
   projects: ProjectRecord[]
 }
 
@@ -102,51 +103,58 @@ function mapProject(project: {
   }
 }
 
-export async function listCountriesWithProjects() {
+export async function listProjectGroupsWithProjects() {
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
-    .from("countries")
+    .from("project_groups")
     .select(
-      "id, name, projects(id, name, bg_color, text_color, cover_image, sort_order)",
+      "id, name, type, projects(id, name, bg_color, text_color, cover_image, sort_order)",
     )
     .order("sort_order", { ascending: true })
     .order("sort_order", { referencedTable: "projects", ascending: true })
 
   if (error) throw new Error(error.message)
 
-  return data.map((country) => ({
-    id: country.id,
-    name: country.name,
-    projects: (country.projects ?? []).map(mapProject),
+  return data.map((group) => ({
+    id: group.id,
+    name: group.name,
+    type: group.type,
+    projects: (group.projects ?? []).map(mapProject),
   }))
 }
 
-export async function saveCountry(input: { id?: string; name: string; sortOrder?: number }) {
+export async function saveProjectGroup(input: {
+  id?: string
+  name: string
+  type?: string
+  sortOrder?: number
+}) {
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
-    .from("countries")
+    .from("project_groups")
     .upsert({
       ...(input.id ? { id: input.id } : {}),
       name: input.name,
+      type: input.type ?? "custom",
       sort_order: input.sortOrder ?? 0,
     })
-    .select("id, name")
+    .select("id, name, type")
     .single()
 
   if (error) throw new Error(error.message)
 
-  return { id: data.id, name: data.name, projects: [] }
+  return { id: data.id, name: data.name, type: data.type, projects: [] }
 }
 
-export async function deleteCountry(countryId: string) {
+export async function deleteProjectGroup(groupId: string) {
   const supabase = getSupabaseBrowserClient()
-  const { error } = await supabase.from("countries").delete().eq("id", countryId)
+  const { error } = await supabase.from("project_groups").delete().eq("id", groupId)
   if (error) throw new Error(error.message)
 }
 
 export async function saveProject(input: {
   id?: string
-  countryId: string
+  groupId: string
   name: string
   bgColor: string
   textColor?: string
@@ -158,7 +166,7 @@ export async function saveProject(input: {
     .from("projects")
     .upsert({
       ...(input.id ? { id: input.id } : {}),
-      country_id: input.countryId,
+      group_id: input.groupId,
       name: input.name,
       bg_color: input.bgColor,
       text_color: input.textColor ?? "text-white",

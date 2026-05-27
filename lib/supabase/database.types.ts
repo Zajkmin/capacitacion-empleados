@@ -72,10 +72,11 @@ export interface Database {
         }
         Relationships: []
       }
-      countries: {
+      project_groups: {
         Row: {
           id: string
           name: string
+          type: string
           sort_order: number
           created_at: string
           updated_at: string
@@ -83,6 +84,7 @@ export interface Database {
         Insert: {
           id?: string
           name: string
+          type?: string
           sort_order?: number
           created_at?: string
           updated_at?: string
@@ -90,6 +92,7 @@ export interface Database {
         Update: {
           id?: string
           name?: string
+          type?: string
           sort_order?: number
           created_at?: string
           updated_at?: string
@@ -99,7 +102,7 @@ export interface Database {
       projects: {
         Row: {
           id: string
-          country_id: string
+          group_id: string
           name: string
           bg_color: string
           text_color: string
@@ -110,7 +113,7 @@ export interface Database {
         }
         Insert: {
           id?: string
-          country_id: string
+          group_id: string
           name: string
           bg_color?: string
           text_color?: string
@@ -121,7 +124,7 @@ export interface Database {
         }
         Update: {
           id?: string
-          country_id?: string
+          group_id?: string
           name?: string
           bg_color?: string
           text_color?: string

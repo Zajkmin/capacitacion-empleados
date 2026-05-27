@@ -22,12 +22,12 @@ import {
   SelectValue,
 } from "@/components/ui/select"
 import {
-  deleteCountry,
+  deleteProjectGroup,
   deleteProject,
-  listCountriesWithProjects,
-  saveCountry,
+  listProjectGroupsWithProjects,
+  saveProjectGroup,
   saveProject,
-  type CountryRecord,
+  type ProjectGroupRecord,
   type ProjectRecord,
 } from "@/lib/supabase/projects"
 
@@ -37,7 +37,7 @@ interface DashboardProps {
 }
 
 type ProjectType = ProjectRecord
-type CountryType = CountryRecord
+type ProjectGroupType = ProjectGroupRecord
 
 const projectColors = [
   "bg-sky-600",
@@ -124,10 +124,10 @@ function ProjectCard({
 }
 
 function AddProjectButton({
-  country,
+  group,
   onClick,
 }: {
-  country: string
+  group: string
   onClick: () => void
 }) {
   return (
@@ -137,32 +137,32 @@ function AddProjectButton({
       className="flex aspect-[4/3] w-full max-w-36 items-center justify-center justify-self-center rounded-lg border border-dashed border-primary/40 bg-primary/5 text-primary transition-colors hover:bg-primary/10"
       whileHover={{ scale: 1.02 }}
       whileTap={{ scale: 0.98 }}
-      aria-label={`Agregar proyecto en ${country}`}
+      aria-label={`Agregar proyecto en ${group}`}
     >
       <Plus className="h-6 w-6" />
     </motion.button>
   )
 }
 
-function CountrySection({
-  country,
+function ProjectGroupSection({
+  group,
   projects,
   canManage,
   onProjectSelect,
   onProjectAdd,
-  onCountryEdit,
-  onCountryDelete,
+  onGroupEdit,
+  onGroupDelete,
   onProjectEdit,
   onProjectDelete,
   delay = 0,
 }: {
-  country: string
+  group: string
   projects: ProjectType[]
   canManage: boolean
   onProjectSelect: (projectId: string) => void
   onProjectAdd: () => void
-  onCountryEdit: () => void
-  onCountryDelete: () => void
+  onGroupEdit: () => void
+  onGroupDelete: () => void
   onProjectEdit: (project: ProjectType) => void
   onProjectDelete: (projectId: string) => void
   delay?: number
@@ -177,7 +177,7 @@ function CountrySection({
       <div className="mb-4 flex items-center gap-3">
         <Building2 className="h-5 w-5 text-primary" />
         <h2 className="text-lg font-semibold text-foreground">
-          Proyectos {country}
+          Proyectos de {group}
         </h2>
         <div className="h-px flex-1 bg-border" />
         {canManage ? (
@@ -186,8 +186,8 @@ function CountrySection({
               type="button"
               size="icon-sm"
               variant="outline"
-              onClick={onCountryEdit}
-              aria-label={`Editar ${country}`}
+              onClick={onGroupEdit}
+              aria-label={`Editar ${group}`}
             >
               <Pencil className="h-4 w-4" />
             </Button>
@@ -195,8 +195,8 @@ function CountrySection({
               type="button"
               size="icon-sm"
               variant="outline"
-              onClick={onCountryDelete}
-              aria-label={`Eliminar ${country}`}
+              onClick={onGroupDelete}
+              aria-label={`Eliminar ${group}`}
             >
               <Trash2 className="h-4 w-4" />
             </Button>
@@ -205,7 +205,7 @@ function CountrySection({
               size="icon-sm"
               variant="outline"
               onClick={onProjectAdd}
-              aria-label={`Agregar proyecto en ${country}`}
+              aria-label={`Agregar proyecto en ${group}`}
             >
               <Plus className="h-4 w-4" />
             </Button>
@@ -233,7 +233,7 @@ function CountrySection({
             </motion.div>
           ))}
           {canManage ? (
-            <AddProjectButton country={country} onClick={onProjectAdd} />
+            <AddProjectButton group={group} onClick={onProjectAdd} />
           ) : null}
         </div>
       </div>
@@ -242,25 +242,25 @@ function CountrySection({
 }
 
 export function Dashboard({ user, onProjectSelect }: DashboardProps) {
-  const [countries, setCountries] = useState<CountryType[]>([])
+  const [groups, setGroups] = useState<ProjectGroupType[]>([])
   const [isLoading, setIsLoading] = useState(true)
   const [dashboardError, setDashboardError] = useState("")
-  const [isCountryDialogOpen, setIsCountryDialogOpen] = useState(false)
+  const [isGroupDialogOpen, setIsGroupDialogOpen] = useState(false)
   const [isProjectDialogOpen, setIsProjectDialogOpen] = useState(false)
-  const [editingCountryId, setEditingCountryId] = useState<string | null>(null)
+  const [editingGroupId, setEditingGroupId] = useState<string | null>(null)
   const [editingProjectId, setEditingProjectId] = useState<string | null>(null)
-  const [countryName, setCountryName] = useState("")
+  const [groupName, setGroupName] = useState("")
   const [projectName, setProjectName] = useState("")
-  const [projectCountryId, setProjectCountryId] = useState("")
+  const [projectGroupId, setProjectGroupId] = useState("")
   const [projectCoverImage, setProjectCoverImage] = useState<string | undefined>()
   const canManageDashboard = user.role === "admin"
 
   useEffect(() => {
     let isMounted = true
 
-    listCountriesWithProjects()
-      .then((storedCountries) => {
-        if (isMounted) setCountries(storedCountries)
+    listProjectGroupsWithProjects()
+      .then((storedGroups) => {
+        if (isMounted) setGroups(storedGroups)
       })
       .catch((error) => {
         if (!isMounted) return
@@ -279,80 +279,80 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     }
   }, [])
 
-  const getNextProjectNumber = (currentCountries: CountryType[]) =>
-    currentCountries.reduce(
-      (total, country) => total + country.projects.length,
+  const getNextProjectNumber = (currentGroups: ProjectGroupType[]) =>
+    currentGroups.reduce(
+      (total, group) => total + group.projects.length,
       0,
     ) + 1
 
-  const openProjectForm = (countryId: string) => {
+  const openProjectForm = (groupId: string) => {
     if (!canManageDashboard) return
 
-    const nextProjectNumber = getNextProjectNumber(countries)
+    const nextProjectNumber = getNextProjectNumber(groups)
 
     setEditingProjectId(null)
     setProjectName(`Proyecto ${nextProjectNumber}`)
-    setProjectCountryId(countryId)
+    setProjectGroupId(groupId)
     setProjectCoverImage(undefined)
     setIsProjectDialogOpen(true)
   }
 
-  const openProjectEditForm = (countryId: string, project: ProjectType) => {
+  const openProjectEditForm = (groupId: string, project: ProjectType) => {
     if (!canManageDashboard) return
 
     setEditingProjectId(project.id)
     setProjectName(project.name)
-    setProjectCountryId(countryId)
+    setProjectGroupId(groupId)
     setProjectCoverImage(project.coverImage)
     setIsProjectDialogOpen(true)
   }
 
-  const openCountryForm = () => {
+  const openGroupForm = () => {
     if (!canManageDashboard) return
 
-    setEditingCountryId(null)
-    setCountryName(`Pais ${countries.length + 1}`)
-    setIsCountryDialogOpen(true)
+    setEditingGroupId(null)
+    setGroupName(`Grupo ${groups.length + 1}`)
+    setIsGroupDialogOpen(true)
   }
 
-  const openCountryEditForm = (country: CountryType) => {
+  const openGroupEditForm = (group: ProjectGroupType) => {
     if (!canManageDashboard) return
 
-    setEditingCountryId(country.id)
-    setCountryName(country.name)
-    setIsCountryDialogOpen(true)
+    setEditingGroupId(group.id)
+    setGroupName(group.name)
+    setIsGroupDialogOpen(true)
   }
 
-  const handleCountrySubmit = async (event: FormEvent<HTMLFormElement>) => {
+  const handleGroupSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!canManageDashboard) return
 
-    const trimmedName = countryName.trim()
+    const trimmedName = groupName.trim()
     if (!trimmedName) return
 
     try {
-      const savedCountry = await saveCountry({
-        id: editingCountryId ?? undefined,
+      const savedGroup = await saveProjectGroup({
+        id: editingGroupId ?? undefined,
         name: trimmedName,
-        sortOrder: countries.length,
+        sortOrder: groups.length,
       })
 
-      setCountries((currentCountries) => {
-        if (editingCountryId) {
-          return currentCountries.map((country) =>
-            country.id === editingCountryId
-              ? { ...country, name: savedCountry.name }
-              : country,
+      setGroups((currentGroups) => {
+        if (editingGroupId) {
+          return currentGroups.map((group) =>
+            group.id === editingGroupId
+              ? { ...group, name: savedGroup.name, type: savedGroup.type }
+              : group,
           )
         }
 
-        return [...currentCountries, savedCountry]
+        return [...currentGroups, savedGroup]
       })
-      setIsCountryDialogOpen(false)
+      setIsGroupDialogOpen(false)
       setDashboardError("")
     } catch (error) {
       setDashboardError(
-        error instanceof Error ? error.message : "No se pudo guardar el pais.",
+        error instanceof Error ? error.message : "No se pudo guardar el grupo.",
       )
     }
   }
@@ -362,36 +362,36 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     if (!canManageDashboard) return
 
     const trimmedName = projectName.trim()
-    if (!trimmedName || !projectCountryId) return
+    if (!trimmedName || !projectGroupId) return
 
     try {
-      const existingProject = countries
-        .flatMap((country) => country.projects)
+      const existingProject = groups
+        .flatMap((group) => group.projects)
         .find((project) => project.id === editingProjectId)
       const savedProject = await saveProject({
         id: editingProjectId ?? undefined,
-        countryId: projectCountryId,
+        groupId: projectGroupId,
         name: trimmedName,
         bgColor:
           existingProject?.bgColor ??
-          projectColors[getNextProjectNumber(countries) % projectColors.length],
+          projectColors[getNextProjectNumber(groups) % projectColors.length],
         textColor: existingProject?.textColor ?? "text-white",
         coverImage: projectCoverImage,
-        sortOrder: getNextProjectNumber(countries),
+        sortOrder: getNextProjectNumber(groups),
       })
 
-      setCountries((currentCountries) => {
-        return currentCountries.map((country) => {
-          const filteredProjects = country.projects.filter(
+      setGroups((currentGroups) => {
+        return currentGroups.map((group) => {
+          const filteredProjects = group.projects.filter(
             (project) => project.id !== editingProjectId,
           )
 
-          if (country.id !== projectCountryId) {
-            return { ...country, projects: filteredProjects }
+          if (group.id !== projectGroupId) {
+            return { ...group, projects: filteredProjects }
           }
 
           return {
-            ...country,
+            ...group,
             projects: [
               ...filteredProjects,
               savedProject,
@@ -408,37 +408,37 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     }
   }
 
-  const handleCountryDelete = async (countryId: string) => {
+  const handleGroupDelete = async (groupId: string) => {
     if (!canManageDashboard) return
 
     try {
-      await deleteCountry(countryId)
-      setCountries((currentCountries) =>
-        currentCountries.filter((country) => country.id !== countryId),
+      await deleteProjectGroup(groupId)
+      setGroups((currentGroups) =>
+        currentGroups.filter((group) => group.id !== groupId),
       )
       setDashboardError("")
     } catch (error) {
       setDashboardError(
-        error instanceof Error ? error.message : "No se pudo eliminar el pais.",
+        error instanceof Error ? error.message : "No se pudo eliminar el grupo.",
       )
     }
   }
 
-  const handleProjectDelete = async (countryId: string, projectId: string) => {
+  const handleProjectDelete = async (groupId: string, projectId: string) => {
     if (!canManageDashboard) return
 
     try {
       await deleteProject(projectId)
-      setCountries((currentCountries) =>
-        currentCountries.map((country) =>
-          country.id === countryId
+      setGroups((currentGroups) =>
+        currentGroups.map((group) =>
+          group.id === groupId
             ? {
-                ...country,
-                projects: country.projects.filter(
+                ...group,
+                projects: group.projects.filter(
                   (project) => project.id !== projectId,
                 ),
               }
-            : country,
+            : group,
         ),
       )
       setDashboardError("")
@@ -505,25 +505,25 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
           </div>
         ) : null}
 
-        {!isLoading && countries.length === 0 ? (
+        {!isLoading && groups.length === 0 ? (
           <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
-            No hay paises ni proyectos cargados.
+            No hay grupos ni proyectos cargados.
           </div>
         ) : null}
 
-        {countries.map((country, index) => (
-          <CountrySection
-            key={country.id}
-            country={country.name}
-            projects={country.projects}
+        {groups.map((group, index) => (
+          <ProjectGroupSection
+            key={group.id}
+            group={group.name}
+            projects={group.projects}
             canManage={canManageDashboard}
             onProjectSelect={onProjectSelect}
-            onProjectAdd={() => openProjectForm(country.id)}
-            onCountryEdit={() => openCountryEditForm(country)}
-            onCountryDelete={() => handleCountryDelete(country.id)}
-            onProjectEdit={(project) => openProjectEditForm(country.id, project)}
+            onProjectAdd={() => openProjectForm(group.id)}
+            onGroupEdit={() => openGroupEditForm(group)}
+            onGroupDelete={() => handleGroupDelete(group.id)}
+            onProjectEdit={(project) => openProjectEditForm(group.id, project)}
             onProjectDelete={(projectId) =>
-              handleProjectDelete(country.id, projectId)
+              handleProjectDelete(group.id, projectId)
             }
             delay={0.1 + index * 0.2}
           />
@@ -533,36 +533,36 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
           <Button
             type="button"
             variant="outline"
-            onClick={openCountryForm}
+            onClick={openGroupForm}
             className="flex w-full border-dashed border-primary/40 bg-card/40 p-4 text-primary hover:bg-primary/10"
           >
             <Plus className="h-4 w-4" />
-            Agregar Pais {countries.length + 1}
+            Agregar grupo {groups.length + 1}
           </Button>
         ) : null}
       </main>
 
-      <Dialog open={isCountryDialogOpen} onOpenChange={setIsCountryDialogOpen}>
+      <Dialog open={isGroupDialogOpen} onOpenChange={setIsGroupDialogOpen}>
         <DialogContent>
-          <form onSubmit={handleCountrySubmit} className="grid gap-4">
+          <form onSubmit={handleGroupSubmit} className="grid gap-4">
             <DialogHeader>
               <DialogTitle>
-                {editingCountryId ? "Editar pais" : "Agregar pais"}
+                {editingGroupId ? "Editar grupo" : "Agregar grupo"}
               </DialogTitle>
               <DialogDescription>
-                Define el nombre del nuevo contenedor de proyectos.
+                Define un contenedor flexible para organizar proyectos.
               </DialogDescription>
             </DialogHeader>
 
             <div className="grid gap-2">
-              <label htmlFor="country-name" className="text-sm font-medium">
-                Nombre del pais
+              <label htmlFor="group-name" className="text-sm font-medium">
+                Nombre del grupo
               </label>
               <Input
-                id="country-name"
-                value={countryName}
-                onChange={(event) => setCountryName(event.target.value)}
-                placeholder="Pais 3"
+                id="group-name"
+                value={groupName}
+                onChange={(event) => setGroupName(event.target.value)}
+                placeholder="Cliente, equipo, region o area"
                 autoFocus
               />
             </div>
@@ -571,11 +571,11 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => setIsCountryDialogOpen(false)}
+                onClick={() => setIsGroupDialogOpen(false)}
               >
                 Cancelar
               </Button>
-              <Button type="submit">Guardar pais</Button>
+              <Button type="submit">Guardar grupo</Button>
             </DialogFooter>
           </form>
         </DialogContent>
@@ -589,7 +589,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
                 {editingProjectId ? "Editar proyecto" : "Agregar proyecto"}
               </DialogTitle>
               <DialogDescription>
-                Completa los datos y elige el pais donde se mostrara.
+                Completa los datos y elige el grupo donde se mostrara.
               </DialogDescription>
             </DialogHeader>
 
@@ -607,15 +607,15 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
             </div>
 
             <div className="grid gap-2">
-              <label className="text-sm font-medium">Pais</label>
-              <Select value={projectCountryId} onValueChange={setProjectCountryId}>
+              <label className="text-sm font-medium">Grupo</label>
+              <Select value={projectGroupId} onValueChange={setProjectGroupId}>
                 <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Selecciona un pais" />
+                  <SelectValue placeholder="Selecciona un grupo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {countries.map((country) => (
-                    <SelectItem key={country.id} value={country.id}>
-                      {country.name}
+                  {groups.map((group) => (
+                    <SelectItem key={group.id} value={group.id}>
+                      {group.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

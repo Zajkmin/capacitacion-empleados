@@ -22,17 +22,30 @@ create table if not exists public.roles (
   updated_at timestamptz not null default now()
 );
 
-create table if not exists public.countries (
+do $$
+begin
+  if to_regclass('public.countries') is not null
+    and to_regclass('public.project_groups') is null then
+    alter table public.countries rename to project_groups;
+  end if;
+end;
+$$;
+
+create table if not exists public.project_groups (
   id uuid primary key default gen_random_uuid(),
   name text not null,
+  type text not null default 'custom',
   sort_order integer not null default 0,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 
+alter table public.project_groups
+add column if not exists type text not null default 'custom';
+
 create table if not exists public.projects (
   id uuid primary key default gen_random_uuid(),
-  country_id uuid not null references public.countries(id) on delete cascade,
+  group_id uuid references public.project_groups(id) on delete cascade,
   name text not null,
   bg_color text not null default 'bg-sky-600',
   text_color text not null default 'text-white',
@@ -41,6 +54,54 @@ create table if not exists public.projects (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'projects'
+      and column_name = 'country_id'
+  ) and not exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'projects'
+      and column_name = 'group_id'
+  ) then
+    alter table public.projects rename column country_id to group_id;
+  end if;
+end;
+$$;
+
+alter table public.projects
+alter column group_id set not null;
+
+do $$
+declare
+  constraint_name text;
+begin
+  select tc.constraint_name into constraint_name
+  from information_schema.table_constraints tc
+  join information_schema.key_column_usage kcu
+    on tc.constraint_name = kcu.constraint_name
+    and tc.table_schema = kcu.table_schema
+  where tc.table_schema = 'public'
+    and tc.table_name = 'projects'
+    and tc.constraint_type = 'FOREIGN KEY'
+    and kcu.column_name = 'group_id'
+  limit 1;
+
+  if constraint_name is not null then
+    execute format('alter table public.projects drop constraint %I', constraint_name);
+  end if;
+end;
+$$;
+
+alter table public.projects
+add constraint projects_group_id_fkey
+foreign key (group_id) references public.project_groups(id) on delete cascade;
 
 create table if not exists public.project_sections (
   id uuid primary key default gen_random_uuid(),
@@ -145,9 +206,10 @@ before update on public.roles
 for each row
 execute function public.set_updated_at();
 
-drop trigger if exists countries_set_updated_at on public.countries;
-create trigger countries_set_updated_at
-before update on public.countries
+drop trigger if exists countries_set_updated_at on public.project_groups;
+drop trigger if exists project_groups_set_updated_at on public.project_groups;
+create trigger project_groups_set_updated_at
+before update on public.project_groups
 for each row
 execute function public.set_updated_at();
 
@@ -191,7 +253,7 @@ execute function public.handle_new_user();
 
 alter table public.profiles enable row level security;
 alter table public.roles enable row level security;
-alter table public.countries enable row level security;
+alter table public.project_groups enable row level security;
 alter table public.projects enable row level security;
 alter table public.project_sections enable row level security;
 
@@ -276,16 +338,18 @@ for delete
 to authenticated
 using (public.current_user_role() = 'admin' and locked = false);
 
-drop policy if exists "Authenticated users can read countries" on public.countries;
-create policy "Authenticated users can read countries"
-on public.countries
+drop policy if exists "Authenticated users can read countries" on public.project_groups;
+drop policy if exists "Admins can manage countries" on public.project_groups;
+drop policy if exists "Authenticated users can read project groups" on public.project_groups;
+create policy "Authenticated users can read project groups"
+on public.project_groups
 for select
 to authenticated
 using (true);
 
-drop policy if exists "Admins can manage countries" on public.countries;
-create policy "Admins can manage countries"
-on public.countries
+drop policy if exists "Admins can manage project groups" on public.project_groups;
+create policy "Admins can manage project groups"
+on public.project_groups
 for all
 to authenticated
 using (public.current_user_role() = 'admin')
