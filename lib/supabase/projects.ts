@@ -1,6 +1,7 @@
 "use client"
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import type { Json } from "@/lib/supabase/database.types"
 import type { SectionType } from "@/lib/roles-permissions"
 
 export interface ProjectRecord {
@@ -25,6 +26,21 @@ export interface ProjectSectionRecord {
   type: SectionType
   content?: string
   color: string
+}
+
+export type SectionItemType = "rule" | "exception" | "photo" | "error" | "update"
+
+export interface SectionItemRecord {
+  id: string
+  sectionId: string
+  type: SectionItemType
+  title: string
+  description: string
+  content?: string
+  imageUrl?: string
+  sourceUrl?: string
+  metadata: Record<string, Json>
+  sortOrder: number
 }
 
 const sectionColors: Record<SectionType, string> = {
@@ -272,6 +288,102 @@ export async function deleteProjectSection(sectionId: string) {
     .from("project_sections")
     .delete()
     .eq("id", sectionId)
+
+  if (error) throw new Error(error.message)
+}
+
+function toPlainMetadata(metadata: Json): Record<string, Json> {
+  if (!metadata || Array.isArray(metadata) || typeof metadata !== "object") {
+    return {}
+  }
+
+  return metadata as Record<string, Json>
+}
+
+function mapSectionItem(item: {
+  id: string
+  section_id: string
+  type: string
+  title: string
+  description: string
+  content: string | null
+  image_url: string | null
+  source_url: string | null
+  metadata: Json
+  sort_order: number
+}): SectionItemRecord {
+  return {
+    id: item.id,
+    sectionId: item.section_id,
+    type: item.type as SectionItemType,
+    title: item.title,
+    description: item.description,
+    content: item.content ?? undefined,
+    imageUrl: item.image_url ?? undefined,
+    sourceUrl: item.source_url ?? undefined,
+    metadata: toPlainMetadata(item.metadata),
+    sortOrder: item.sort_order,
+  }
+}
+
+export async function listSectionItems(sectionId: string) {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("section_items")
+    .select(
+      "id, section_id, type, title, description, content, image_url, source_url, metadata, sort_order",
+    )
+    .eq("section_id", sectionId)
+    .order("sort_order", { ascending: true })
+
+  if (error) throw new Error(error.message)
+
+  return data.map(mapSectionItem)
+}
+
+export async function saveSectionItem(input: {
+  id?: string
+  sectionId: string
+  type: SectionItemType
+  title: string
+  description: string
+  content?: string
+  imageUrl?: string
+  sourceUrl?: string
+  metadata?: Record<string, Json>
+  sortOrder?: number
+  userId?: string
+}) {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("section_items")
+    .upsert({
+      ...(input.id
+        ? { id: input.id, updated_by: input.userId ?? null }
+        : { created_by: input.userId ?? null }),
+      section_id: input.sectionId,
+      type: input.type,
+      title: input.title,
+      description: input.description,
+      content: input.content ?? null,
+      image_url: input.imageUrl ?? null,
+      source_url: input.sourceUrl ?? null,
+      metadata: input.metadata ?? {},
+      sort_order: input.sortOrder ?? 0,
+    })
+    .select(
+      "id, section_id, type, title, description, content, image_url, source_url, metadata, sort_order",
+    )
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  return mapSectionItem(data)
+}
+
+export async function deleteSectionItem(itemId: string) {
+  const supabase = getSupabaseBrowserClient()
+  const { error } = await supabase.from("section_items").delete().eq("id", itemId)
 
   if (error) throw new Error(error.message)
 }

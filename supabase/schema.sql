@@ -118,6 +118,23 @@ create table if not exists public.project_sections (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.section_items (
+  id uuid primary key default gen_random_uuid(),
+  section_id uuid not null references public.project_sections(id) on delete cascade,
+  type text not null,
+  title text not null,
+  description text not null default '',
+  content text,
+  image_url text,
+  source_url text,
+  metadata jsonb not null default '{}'::jsonb,
+  sort_order integer not null default 0,
+  created_by uuid references auth.users(id) on delete set null,
+  updated_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into public.roles (id, label, description, color, permissions, locked)
 values
   (
@@ -225,6 +242,12 @@ before update on public.project_sections
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists section_items_set_updated_at on public.section_items;
+create trigger section_items_set_updated_at
+before update on public.section_items
+for each row
+execute function public.set_updated_at();
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -256,6 +279,7 @@ alter table public.roles enable row level security;
 alter table public.project_groups enable row level security;
 alter table public.projects enable row level security;
 alter table public.project_sections enable row level security;
+alter table public.section_items enable row level security;
 
 create or replace function public.current_user_role()
 returns text
@@ -404,6 +428,47 @@ with check (
 drop policy if exists "Users with delete_section can delete project sections" on public.project_sections;
 create policy "Users with delete_section can delete project sections"
 on public.project_sections
+for delete
+to authenticated
+using (
+  public.current_user_role() = 'admin'
+  or 'delete_section' = any(public.current_user_permissions())
+);
+
+drop policy if exists "Authenticated users can read section items" on public.section_items;
+create policy "Authenticated users can read section items"
+on public.section_items
+for select
+to authenticated
+using (true);
+
+drop policy if exists "Users with add_section can insert section items" on public.section_items;
+create policy "Users with add_section can insert section items"
+on public.section_items
+for insert
+to authenticated
+with check (
+  public.current_user_role() = 'admin'
+  or 'add_section' = any(public.current_user_permissions())
+);
+
+drop policy if exists "Users with edit_section can update section items" on public.section_items;
+create policy "Users with edit_section can update section items"
+on public.section_items
+for update
+to authenticated
+using (
+  public.current_user_role() = 'admin'
+  or 'edit_section' = any(public.current_user_permissions())
+)
+with check (
+  public.current_user_role() = 'admin'
+  or 'edit_section' = any(public.current_user_permissions())
+);
+
+drop policy if exists "Users with delete_section can delete section items" on public.section_items;
+create policy "Users with delete_section can delete section items"
+on public.section_items
 for delete
 to authenticated
 using (

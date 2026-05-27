@@ -29,8 +29,13 @@ import {
 } from "@/lib/roles-permissions"
 import {
   deleteProjectSection,
+  deleteSectionItem,
+  listSectionItems,
   listProjectSections,
+  saveSectionItem,
   saveProjectSection,
+  type SectionItemRecord,
+  type SectionItemType,
 } from "@/lib/supabase/projects"
 
 interface ProjectViewProps {
@@ -536,6 +541,7 @@ function SectionDetail({
       <main className="p-4 lg:p-8 max-w-4xl mx-auto">
         <SectionContent 
           sectionId={section.type} 
+          sectionRecordId={section.id}
           canAdd={canAdd}
           canEdit={canEdit}
           canDelete={canDelete}
@@ -548,12 +554,14 @@ function SectionDetail({
 
 function SectionContent({ 
   sectionId,
+  sectionRecordId,
   canAdd,
   canEdit,
   canDelete,
   userRole,
 }: { 
   sectionId: string
+  sectionRecordId: string
   canAdd?: boolean
   canEdit?: boolean
   canDelete?: boolean
@@ -561,18 +569,503 @@ function SectionContent({
 }) {
   switch (sectionId) {
     case "rules":
-      return <RulesContent canAdd={canAdd} canEdit={canEdit} canDelete={canDelete} />
+      return (
+        <SectionItemsContent
+          sectionId={sectionRecordId}
+          itemType="rule"
+          icon={BookOpen}
+          accentClass="bg-primary/20"
+          iconClass="text-primary"
+          addButtonClass="bg-primary/10 text-primary hover:bg-primary/20 border-primary/30"
+          addLabel="Agregar Nueva Regla"
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     case "exceptions":
-      return <ExceptionsContent canAdd={canAdd} canEdit={canEdit} canDelete={canDelete} />
+      return (
+        <SectionItemsContent
+          sectionId={sectionRecordId}
+          itemType="exception"
+          icon={AlertTriangle}
+          accentClass="bg-amber-500/20"
+          iconClass="text-amber-500"
+          cardClass="border-l-4 border-amber-500"
+          addButtonClass="bg-amber-500/10 text-amber-600 hover:bg-amber-500/20 border-amber-500/30"
+          addLabel="Agregar Nueva Excepcion"
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     case "photos":
-      return <PhotosContent canAdd={canAdd} canEdit={canEdit} canDelete={canDelete} />
+      return (
+        <PhotoItemsContent
+          sectionId={sectionRecordId}
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     case "errors":
-      return <ErrorsContent canAdd={canAdd} canEdit={canEdit} canDelete={canDelete} />
+      return (
+        <SectionItemsContent
+          sectionId={sectionRecordId}
+          itemType="error"
+          icon={XCircle}
+          accentClass="bg-rose-500/20"
+          iconClass="text-rose-500"
+          cardClass="border-l-4 border-rose-500"
+          addButtonClass="bg-rose-500/10 text-rose-600 hover:bg-rose-500/20 border-rose-500/30"
+          addLabel="Agregar Nuevo Error Frecuente"
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     case "updates":
-      return <UpdatesContent canAdd={canAdd} canEdit={canEdit} canDelete={canDelete} />
+      return (
+        <SectionItemsContent
+          sectionId={sectionRecordId}
+          itemType="update"
+          icon={RefreshCw}
+          accentClass="bg-cyan-500/20"
+          iconClass="text-cyan-500"
+          addButtonClass="bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border-cyan-500/30"
+          addLabel="Agregar Nueva Actualizacion"
+          canAdd={canAdd}
+          canEdit={canEdit}
+          canDelete={canDelete}
+        />
+      )
     default:
       return null
   }
+}
+
+function useSectionItems(sectionId: string) {
+  const [items, setItems] = useState<SectionItemRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState("")
+
+  useEffect(() => {
+    let isMounted = true
+
+    listSectionItems(sectionId)
+      .then((storedItems) => {
+        if (isMounted) setItems(storedItems)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudo cargar el contenido.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [sectionId])
+
+  const saveItem = async (
+    itemType: SectionItemType,
+    itemData: Record<string, any>,
+    editingItem?: SectionItemRecord | null,
+  ) => {
+    const metadata: Record<string, string> = {}
+    if (typeof itemData.validUntil === "string") {
+      metadata.validUntil = itemData.validUntil
+    }
+    if (typeof itemData.date === "string") {
+      metadata.date = itemData.date
+    }
+
+    const savedItem = await saveSectionItem({
+      id: editingItem?.id,
+      sectionId,
+      type: itemType,
+      title: itemData.title,
+      description: itemData.description,
+      imageUrl: itemData.imageUrl,
+      metadata,
+      sortOrder: editingItem
+        ? items.findIndex((item) => item.id === editingItem.id)
+        : items.length,
+    })
+
+    setItems((currentItems) =>
+      editingItem
+        ? currentItems.map((item) =>
+            item.id === savedItem.id ? savedItem : item,
+          )
+        : [...currentItems, savedItem],
+    )
+    setErrorMessage("")
+  }
+
+  const deleteItem = async (itemId: string) => {
+    await deleteSectionItem(itemId)
+    setItems((currentItems) => currentItems.filter((item) => item.id !== itemId))
+    setErrorMessage("")
+  }
+
+  return {
+    items,
+    isLoading,
+    errorMessage,
+    setErrorMessage,
+    saveItem,
+    deleteItem,
+  }
+}
+
+function itemToModalItem(item: SectionItemRecord) {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
+    imageUrl: item.imageUrl,
+    validUntil:
+      typeof item.metadata.validUntil === "string"
+        ? item.metadata.validUntil
+        : undefined,
+    date:
+      typeof item.metadata.date === "string"
+        ? item.metadata.date
+        : undefined,
+  }
+}
+
+function SectionItemMeta({ item }: { item: SectionItemRecord }) {
+  const validUntil =
+    typeof item.metadata.validUntil === "string"
+      ? item.metadata.validUntil
+      : undefined
+  const date =
+    typeof item.metadata.date === "string" ? item.metadata.date : undefined
+
+  if (validUntil) {
+    return (
+      <span className="text-xs px-2 py-1 rounded-full bg-amber-500/10 text-amber-700">
+        {validUntil}
+      </span>
+    )
+  }
+
+  if (date) {
+    return <span className="text-xs text-muted-foreground">{date}</span>
+  }
+
+  return null
+}
+
+function SectionItemsContent({
+  sectionId,
+  itemType,
+  icon: Icon,
+  accentClass,
+  iconClass,
+  addButtonClass,
+  addLabel,
+  cardClass = "",
+  canAdd,
+  canEdit,
+  canDelete,
+}: {
+  sectionId: string
+  itemType: SectionItemType
+  icon: typeof BookOpen
+  accentClass: string
+  iconClass: string
+  addButtonClass: string
+  addLabel: string
+  cardClass?: string
+  canAdd?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
+}) {
+  const { items, isLoading, errorMessage, setErrorMessage, saveItem, deleteItem } =
+    useSectionItems(sectionId)
+  const [showModal, setShowModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<SectionItemRecord | null>(null)
+
+  const handleSave = async (itemData: Record<string, any>) => {
+    try {
+      await saveItem(itemType, itemData, editingItem)
+      setShowModal(false)
+      setEditingItem(null)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el contenido.",
+      )
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {errorMessage ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {canAdd && (
+        <button
+          onClick={() => {
+            setEditingItem(null)
+            setShowModal(true)
+          }}
+          className={`w-full py-3 px-4 rounded-xl transition-colors flex items-center justify-center gap-2 border mb-4 ${addButtonClass}`}
+        >
+          <Plus className="w-5 h-5" />
+          {addLabel}
+        </button>
+      )}
+
+      {isLoading ? (
+        <div className="glass-card rounded-2xl p-5 text-sm text-muted-foreground">
+          Cargando contenido...
+        </div>
+      ) : null}
+
+      {!isLoading && items.length === 0 ? (
+        <div className="glass-card rounded-2xl p-8 text-center text-sm text-muted-foreground">
+          No hay contenido cargado.
+        </div>
+      ) : null}
+
+      {items.map((item, index) => (
+        <motion.div
+          key={item.id}
+          className={`glass-card rounded-2xl p-5 group ${cardClass}`}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: index * 0.05 }}
+        >
+          <div className="flex items-start gap-4">
+            <div className={`w-10 h-10 rounded-xl ${accentClass} flex items-center justify-center flex-shrink-0`}>
+              <Icon className={`w-5 h-5 ${iconClass}`} />
+            </div>
+            <div className="flex-1">
+              <div className="flex items-center justify-between mb-1 gap-3">
+                <h3 className="font-semibold text-foreground">{item.title}</h3>
+                <SectionItemMeta item={item} />
+              </div>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                {item.description}
+              </p>
+              {item.imageUrl ? (
+                <img
+                  src={item.imageUrl}
+                  alt=""
+                  className="mt-4 aspect-video w-full max-w-md rounded-xl object-cover"
+                />
+              ) : null}
+            </div>
+            {(canEdit || canDelete) && (
+              <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
+                {canEdit && (
+                  <button
+                    onClick={() => {
+                      setEditingItem(item)
+                      setShowModal(true)
+                    }}
+                    className="p-1.5 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                    title="Editar"
+                  >
+                    <Edit2 className="w-4 h-4" />
+                  </button>
+                )}
+                {canDelete && (
+                  <button
+                    onClick={() => {
+                      if (!confirm("¿Está seguro de que desea eliminar este contenido?")) return
+                      deleteItem(item.id).catch((error) => {
+                        setErrorMessage(
+                          error instanceof Error
+                            ? error.message
+                            : "No se pudo eliminar el contenido.",
+                        )
+                      })
+                    }}
+                    className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </motion.div>
+      ))}
+
+      <ItemEditModal
+        isOpen={showModal}
+        isNew={!editingItem}
+        itemType={itemType}
+        item={editingItem ? itemToModalItem(editingItem) : undefined}
+        onSave={handleSave}
+        onClose={() => {
+          setShowModal(false)
+          setEditingItem(null)
+        }}
+      />
+    </div>
+  )
+}
+
+function PhotoItemsContent({
+  sectionId,
+  canAdd,
+  canEdit,
+  canDelete,
+}: {
+  sectionId: string
+  canAdd?: boolean
+  canEdit?: boolean
+  canDelete?: boolean
+}) {
+  const { items, isLoading, errorMessage, setErrorMessage, saveItem, deleteItem } =
+    useSectionItems(sectionId)
+  const [showModal, setShowModal] = useState(false)
+  const [editingItem, setEditingItem] = useState<SectionItemRecord | null>(null)
+
+  const handleSave = async (itemData: Record<string, any>) => {
+    try {
+      await saveItem("photo", itemData, editingItem)
+      setShowModal(false)
+      setEditingItem(null)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar la foto.",
+      )
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      {errorMessage ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {canAdd && (
+        <button
+          onClick={() => {
+            setEditingItem(null)
+            setShowModal(true)
+          }}
+          className="w-full py-3 px-4 rounded-xl bg-emerald-500/10 text-emerald-600 hover:bg-emerald-500/20 transition-colors flex items-center justify-center gap-2 border border-emerald-500/30 mb-4"
+        >
+          <Plus className="w-5 h-5" />
+          Agregar Nueva Foto Guia
+        </button>
+      )}
+
+      {isLoading ? (
+        <div className="glass-card rounded-2xl p-5 text-sm text-muted-foreground">
+          Cargando fotos...
+        </div>
+      ) : null}
+
+      {!isLoading && items.length === 0 ? (
+        <div className="glass-card rounded-2xl p-8 text-center">
+          <Camera className="w-16 h-16 mx-auto text-primary/30 mb-4" />
+          <p className="text-muted-foreground">
+            {canAdd ? "No hay fotos guia. Agrega una nueva." : "No hay fotos guia disponibles"}
+          </p>
+        </div>
+      ) : null}
+
+      {items.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {items.map((item, index) => (
+            <motion.div
+              key={item.id}
+              className="glass-card rounded-2xl overflow-hidden group"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+            >
+              <div className="relative aspect-video bg-gradient-to-br from-emerald-500/20 to-emerald-500/5 flex items-center justify-center overflow-hidden">
+                {item.imageUrl ? (
+                  <img
+                    src={item.imageUrl}
+                    alt={item.title}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <Camera className="w-12 h-12 text-emerald-500/40" />
+                )}
+                {(canEdit || canDelete) && (
+                  <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
+                    {canEdit && (
+                      <button
+                        onClick={() => {
+                          setEditingItem(item)
+                          setShowModal(true)
+                        }}
+                        className="p-2 rounded-lg bg-primary/80 text-primary-foreground hover:bg-primary transition-colors"
+                        title="Editar"
+                      >
+                        <Edit2 className="w-4 h-4" />
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={() => {
+                          if (!confirm("¿Está seguro de que desea eliminar esta foto?")) return
+                          deleteItem(item.id).catch((error) => {
+                            setErrorMessage(
+                              error instanceof Error
+                                ? error.message
+                                : "No se pudo eliminar la foto.",
+                            )
+                          })
+                        }}
+                        className="p-2 rounded-lg bg-destructive/80 text-destructive-foreground hover:bg-destructive transition-colors"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="font-semibold text-foreground mb-1">{item.title}</h3>
+                <p className="text-sm text-muted-foreground">{item.description}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      ) : null}
+
+      <ItemEditModal
+        isOpen={showModal}
+        isNew={!editingItem}
+        itemType="photo"
+        item={editingItem ? itemToModalItem(editingItem) : undefined}
+        onSave={handleSave}
+        onClose={() => {
+          setShowModal(false)
+          setEditingItem(null)
+        }}
+      />
+    </div>
+  )
 }
 
 function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdit?: boolean; canDelete?: boolean }) {

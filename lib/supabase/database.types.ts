@@ -180,6 +180,57 @@ export interface Database {
         }
         Relationships: []
       }
+      section_items: {
+        Row: {
+          id: string
+          section_id: string
+          type: string
+          title: string
+          description: string
+          content: string | null
+          image_url: string | null
+          source_url: string | null
+          metadata: Json
+          sort_order: number
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          section_id: string
+          type: string
+          title: string
+          description?: string
+          content?: string | null
+          image_url?: string | null
+          source_url?: string | null
+          metadata?: Json
+          sort_order?: number
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          section_id?: string
+          type?: string
+          title?: string
+          description?: string
+          content?: string | null
+          image_url?: string | null
+          source_url?: string | null
+          metadata?: Json
+          sort_order?: number
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
