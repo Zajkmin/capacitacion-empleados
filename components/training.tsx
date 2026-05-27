@@ -1,6 +1,13 @@
 "use client"
 
-import { useEffect, useMemo, useState, type ChangeEvent, type FormEvent } from "react"
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type ChangeEvent,
+  type FormEvent,
+  type ReactNode,
+} from "react"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
@@ -13,7 +20,6 @@ import {
   Plus,
   Search,
   Trash2,
-  Users,
   X,
 } from "lucide-react"
 
@@ -75,50 +81,15 @@ const contentTypeIcons = {
 const initialTopics: TrainingTopic[] = [
   {
     id: "1",
-    title: "Inicio de jornada y preparacion",
+    title: "Tipo de capacitacion",
     category: "general",
     order: 1,
-    summary: "Checklist basico antes de salir a campo.",
-    body: "Revisa tu ruta, bateria del dispositivo, materiales requeridos y objetivos del dia. Confirma que comprendes el proyecto asignado antes de iniciar visitas.",
-    contentType: "text",
-    visibleTo: ["supervisor", "encuestador", "analista_calidad"],
-    updatedAt: "2026-05-20",
-  },
-  {
-    id: "2",
-    title: "Registro correcto de evidencias",
-    category: "encuestador",
-    order: 2,
-    summary: "Como tomar fotos y cargar informacion sin errores.",
-    body: "Las fotos deben mostrar el producto o exhibicion completa, sin cortes importantes y con buena iluminacion. Si una evidencia no es clara, repitela antes de cerrar la visita.",
+    summary: "Descripcion breve de la capacitacion.",
+    body: "Contenido detallado de la capacitacion. En este apartado se podran agregar instrucciones, explicaciones, imagenes, videos, enlaces o documentos relacionados con este tema.",
     contentType: "photo",
-    mediaUrl: "https://placehold.co/900x500?text=Evidencia+Correcta",
-    visibleTo: ["encuestador", "supervisor", "analista_calidad"],
-    updatedAt: "2026-05-22",
-  },
-  {
-    id: "3",
-    title: "Seguimiento de equipo",
-    category: "supervisor",
-    order: 1,
-    summary: "Pautas para coordinar, revisar y acompanar al equipo.",
-    body: "El supervisor debe validar avances, resolver bloqueos y documentar cambios relevantes. Prioriza casos con riesgo operativo o datos incompletos.",
-    contentType: "video",
-    mediaUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    visibleTo: ["supervisor", "admin"],
-    updatedAt: "2026-05-18",
-  },
-  {
-    id: "4",
-    title: "Criterios de revision de calidad",
-    category: "analista_calidad",
-    order: 1,
-    summary: "Guia para detectar inconsistencias en reportes.",
-    body: "Verifica coherencia entre respuestas, fotografias, horarios y ubicacion. Marca observaciones con lenguaje claro para que el equipo pueda corregir sin ambiguedad.",
-    contentType: "link",
-    mediaUrl: "https://example.com/guia-calidad",
-    visibleTo: ["analista_calidad", "admin"],
-    updatedAt: "2026-05-21",
+    mediaUrl: "https://placehold.co/900x500?text=Visual+de+capacitacion",
+    visibleTo: ["admin", "supervisor", "encuestador", "analista_calidad"],
+    updatedAt: new Date().toISOString().split("T")[0],
   },
 ]
 
@@ -140,6 +111,7 @@ export function Training({ user, onBack }: TrainingProps) {
   const [query, setQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<UserRole | "general" | "all">("all")
   const [editingTopic, setEditingTopic] = useState<TrainingTopic | null>(null)
+  const [selectedTopic, setSelectedTopic] = useState<TrainingTopic | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
   const canAdd = hasPermission(user.role, "add_section")
@@ -180,6 +152,9 @@ export function Training({ user, onBack }: TrainingProps) {
           topic.id === editingTopic.id ? { ...topic, ...topicData } : topic,
         ),
       )
+      if (selectedTopic?.id === editingTopic.id) {
+        setSelectedTopic({ ...editingTopic, ...topicData })
+      }
     } else {
       setTopics((currentTopics) => [
         ...currentTopics,
@@ -197,6 +172,35 @@ export function Training({ user, onBack }: TrainingProps) {
 
     setTopics((currentTopics) =>
       currentTopics.filter((topic) => topic.id !== topicId),
+    )
+    if (selectedTopic?.id === topicId) {
+      setSelectedTopic(null)
+    }
+  }
+
+  if (selectedTopic) {
+    return (
+      <TrainingDetail
+        topic={selectedTopic}
+        canEdit={canEdit}
+        canDelete={canDelete}
+        onBack={() => setSelectedTopic(null)}
+        onEdit={() => {
+          setEditingTopic(selectedTopic)
+          setIsModalOpen(true)
+        }}
+        onDelete={() => handleDeleteTopic(selectedTopic.id)}
+      >
+        <TrainingTopicModal
+          isOpen={isModalOpen}
+          topic={editingTopic}
+          onClose={() => {
+            setIsModalOpen(false)
+            setEditingTopic(null)
+          }}
+          onSave={handleSaveTopic}
+        />
+      </TrainingDetail>
     )
   }
 
@@ -279,7 +283,7 @@ export function Training({ user, onBack }: TrainingProps) {
                     <div className="min-w-0 flex-1">
                       <div className="mb-3 flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">
-                          {getRoleLabel(topic.category)}
+                          Rol
                         </Badge>
                         <Badge variant="outline">
                           Orden {topic.order}
@@ -303,7 +307,8 @@ export function Training({ user, onBack }: TrainingProps) {
                           type="button"
                           variant="outline"
                           size="icon-sm"
-                          onClick={() => {
+                          onClick={(event) => {
+                            event.stopPropagation()
                             setEditingTopic(topic)
                             setIsModalOpen(true)
                           }}
@@ -317,7 +322,10 @@ export function Training({ user, onBack }: TrainingProps) {
                           type="button"
                           variant="outline"
                           size="icon-sm"
-                          onClick={() => handleDeleteTopic(topic.id)}
+                          onClick={(event) => {
+                            event.stopPropagation()
+                            handleDeleteTopic(topic.id)
+                          }}
                           aria-label={`Eliminar ${topic.title}`}
                         >
                           <Trash2 className="h-4 w-4" />
@@ -326,7 +334,18 @@ export function Training({ user, onBack }: TrainingProps) {
                     </div>
                   </div>
 
-                  <div className="mt-4 grid gap-4 lg:grid-cols-[1fr_280px]">
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => setSelectedTopic(topic)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault()
+                        setSelectedTopic(topic)
+                      }
+                    }}
+                    className="mt-4 grid w-full cursor-pointer gap-4 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-primary lg:grid-cols-[1fr_280px]"
+                  >
                     <p className="text-sm leading-relaxed text-foreground/80">
                       {topic.body}
                     </p>
@@ -339,10 +358,7 @@ export function Training({ user, onBack }: TrainingProps) {
                       <CalendarClock className="h-3.5 w-3.5" />
                       Actualizado {topic.updatedAt}
                     </span>
-                    <span className="inline-flex items-center gap-1">
-                      <Users className="h-3.5 w-3.5" />
-                      Visible para {topic.visibleTo.map(getRoleLabel).join(", ")}
-                    </span>
+                    <span>Ver informacion completa</span>
                   </div>
                 </motion.article>
               )
@@ -434,6 +450,113 @@ function TrainingMedia({ topic }: { topic: TrainingTopic }) {
   return (
     <div className="flex min-h-32 items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
       Contenido de texto
+    </div>
+  )
+}
+
+function TrainingDetail({
+  topic,
+  canEdit,
+  canDelete,
+  onBack,
+  onEdit,
+  onDelete,
+  children,
+}: {
+  topic: TrainingTopic
+  canEdit: boolean
+  canDelete: boolean
+  onBack: () => void
+  onEdit: () => void
+  onDelete: () => void
+  children: ReactNode
+}) {
+  const TypeIcon = contentTypeIcons[topic.contentType]
+
+  return (
+    <div className="min-h-screen pb-24 lg:pb-8">
+      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-lg">
+        <div className="p-4 lg:px-8">
+          <div className="flex items-center gap-4">
+            <button
+              onClick={onBack}
+              className="rounded-xl border border-border bg-card p-2 transition-colors hover:bg-card/80"
+              aria-label="Volver"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+            <div className="min-w-0 flex-1">
+              <h1 className="truncate text-lg font-bold text-foreground">
+                {topic.title}
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                Informacion de la capacitacion
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              {canEdit ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={onEdit}
+                  aria-label="Editar capacitacion"
+                >
+                  <Pencil className="h-4 w-4" />
+                </Button>
+              ) : null}
+              {canDelete ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={onDelete}
+                  aria-label="Eliminar capacitacion"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              ) : null}
+            </div>
+          </div>
+        </div>
+      </header>
+
+      <main className="mx-auto grid max-w-6xl gap-6 p-4 lg:grid-cols-[1fr_360px] lg:p-8">
+        <section className="rounded-lg border border-border bg-card p-6">
+          <div className="mb-4 flex flex-wrap items-center gap-2">
+            <Badge variant="secondary">Rol</Badge>
+            <Badge variant="outline">Orden {topic.order}</Badge>
+            <Badge variant="outline" className="gap-1">
+              <TypeIcon className="h-3 w-3" />
+              {contentTypeLabels[topic.contentType]}
+            </Badge>
+          </div>
+
+          <h2 className="text-2xl font-semibold text-foreground">
+            {topic.title}
+          </h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {topic.summary}
+          </p>
+
+          <div className="mt-6 border-t border-border pt-6">
+            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
+              {topic.body}
+            </p>
+          </div>
+
+          <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
+            <CalendarClock className="h-3.5 w-3.5" />
+            Actualizado {topic.updatedAt}
+          </div>
+        </section>
+
+        <aside className="rounded-lg border border-border bg-card p-4">
+          <TrainingMedia topic={topic} />
+        </aside>
+      </main>
+
+      {children}
     </div>
   )
 }
