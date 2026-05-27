@@ -5,10 +5,9 @@ import { motion } from "framer-motion"
 import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { defaultRoles, type UserRole, roleMetadata } from "@/lib/roles-permissions"
 
 interface LoginPageProps {
-  onLogin: (email: string, password: string, role: UserRole) => void
+  onLogin: (email: string, password: string) => Promise<void>
 }
 
 export function LoginPage({ onLogin }: LoginPageProps) {
@@ -16,14 +15,24 @@ export function LoginPage({ onLogin }: LoginPageProps) {
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
-  const [selectedRole, setSelectedRole] = useState<UserRole>("supervisor")
+  const [errorMessage, setErrorMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setIsLoading(true)
-    // Simulate API call
-    await new Promise((resolve) => setTimeout(resolve, 1000))
-    onLogin(email, password, selectedRole)
+    setErrorMessage("")
+
+    try {
+      await onLogin(email, password)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar sesion. Revisa tus credenciales.",
+      )
+    } finally {
+      setIsLoading(false)
+    }
   }
 
   return (
@@ -165,25 +174,11 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <label className="text-sm font-medium text-foreground">
-                  Rol de acceso
-                </label>
-                <select
-                  value={selectedRole}
-                  onChange={(e) => setSelectedRole(e.target.value as UserRole)}
-                  className="w-full h-12 px-4 rounded-lg bg-secondary border border-border text-foreground focus:outline-none focus:border-primary focus:ring-primary/20 transition-all duration-200"
-                >
-                  {defaultRoles.map((role) => (
-                    <option key={role} value={role}>
-                      {roleMetadata[role].label}
-                    </option>
-                  ))}
-                </select>
-                <p className="text-xs text-muted-foreground">
-                  {roleMetadata[selectedRole]?.description}
-                </p>
-              </div>
+              {errorMessage ? (
+                <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+                  {errorMessage}
+                </div>
+              ) : null}
               
               <div className="flex items-center justify-between text-sm">
                 <label className="flex items-center gap-2 cursor-pointer">

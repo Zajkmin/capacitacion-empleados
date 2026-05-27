@@ -119,6 +119,20 @@ export function getPermissions(role: UserRole): Permission[] {
   return rolePermissions[role] ?? []
 }
 
+export interface PermissionAwareUser {
+  role: UserRole
+  permissions?: Permission[]
+}
+
+export function userHasPermission(
+  user: PermissionAwareUser,
+  permission: Permission,
+): boolean {
+  if (user.role === "admin") return true
+  if (user.permissions) return user.permissions.includes(permission)
+  return hasPermission(user.role, permission)
+}
+
 // Tipos de secciones del proyecto
 export type SectionType =
   | "rules"

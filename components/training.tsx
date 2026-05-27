@@ -35,13 +35,14 @@ import {
 } from "@/components/ui/select"
 import {
   defaultRoles,
-  hasPermission,
   roleMetadata,
+  userHasPermission,
+  type Permission,
   type UserRole,
 } from "@/lib/roles-permissions"
 
 interface TrainingProps {
-  user: { name: string; email: string; role: UserRole }
+  user: { name: string; email: string; role: UserRole; permissions?: Permission[] }
   onBack: () => void
 }
 
@@ -114,9 +115,9 @@ export function Training({ user, onBack }: TrainingProps) {
   const [selectedTopic, setSelectedTopic] = useState<TrainingTopic | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
 
-  const canAdd = hasPermission(user.role, "add_section")
-  const canEdit = hasPermission(user.role, "edit_section")
-  const canDelete = hasPermission(user.role, "delete_section")
+  const canAdd = userHasPermission(user, "add_section")
+  const canEdit = userHasPermission(user, "edit_section")
+  const canDelete = userHasPermission(user, "delete_section")
   const canManage = canAdd || canEdit || canDelete
 
   const visibleTopics = useMemo(() => {

@@ -21,7 +21,11 @@ import { Library } from "@/components/library"
 import { SectionEditModal } from "@/components/section-edit-modal"
 import { ItemEditModal } from "@/components/item-edit-modal"
 import type { ViewType } from "@/components/dashboard-layout"
-import { hasPermission, type UserRole } from "@/lib/roles-permissions"
+import {
+  userHasPermission,
+  type Permission,
+  type UserRole,
+} from "@/lib/roles-permissions"
 
 interface ProjectViewProps {
   projectId: string
@@ -29,7 +33,7 @@ interface ProjectViewProps {
   projectColor?: string
   onBack: () => void
   onNavigate: (view: ViewType) => void
-  user?: { name: string; email: string; role: UserRole }
+  user?: { name: string; email: string; role: UserRole; permissions?: Permission[] }
 }
 
 const projectData = {
@@ -102,9 +106,15 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
   const displayName = projectName || projectData.name
   const displayColor = projectColor || projectData.color
   const userRole = (user?.role || "encuestador") as UserRole
-  const canEdit = hasPermission(userRole, "edit_section")
-  const canAdd = hasPermission(userRole, "add_section")
-  const canDelete = hasPermission(userRole, "delete_section")
+  const canEdit = user
+    ? userHasPermission(user, "edit_section")
+    : false
+  const canAdd = user
+    ? userHasPermission(user, "add_section")
+    : false
+  const canDelete = user
+    ? userHasPermission(user, "delete_section")
+    : false
 
   if (activeSection) {
     if (activeSection === "visual-learning") {

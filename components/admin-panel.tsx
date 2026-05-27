@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
@@ -27,18 +27,20 @@ import {
   type User,
   type UserRole,
 } from "@/lib/roles-permissions"
+import {
+  deleteRole,
+  listRoles,
+  saveRole,
+  type RoleConfig,
+} from "@/lib/supabase/roles"
+import {
+  createProfileUser,
+  listProfiles,
+  updateProfile,
+} from "@/lib/supabase/profiles"
 
 interface AdminPanelProps {
   onBack: () => void
-}
-
-interface RoleConfig {
-  id: UserRole
-  label: string
-  description: string
-  color: string
-  permissions: Permission[]
-  locked?: boolean
 }
 
 type ModalMode = "create" | "edit"
@@ -62,38 +64,6 @@ const initialRoles: RoleConfig[] = defaultRoles.map((role) => ({
   locked: role === "admin",
 }))
 
-const mockUsers: User[] = [
-  {
-    id: "1",
-    name: "Carlos Mendoza",
-    email: "carlos@example.com",
-    role: "admin",
-    createdAt: "2025-01-15",
-  },
-  {
-    id: "2",
-    name: "Juan Garcia",
-    email: "juan@example.com",
-    role: "supervisor",
-    createdAt: "2025-02-20",
-  },
-  {
-    id: "3",
-    name: "Maria Lopez",
-    email: "maria@example.com",
-    role: "encuestador",
-    createdAt: "2025-03-10",
-  },
-  {
-    id: "4",
-    name: "Pedro Rodriguez",
-    email: "pedro@example.com",
-    role: "analista_calidad",
-    createdAt: "2025-03-15",
-    extraPermissions: ["delete_section"],
-  },
-]
-
 function createRoleId(label: string) {
   return label
     .trim()
@@ -109,9 +79,15 @@ function formatPermission(permission: Permission) {
 }
 
 export function AdminPanel({ onBack }: AdminPanelProps) {
-  const [users, setUsers] = useState<User[]>(mockUsers)
+  const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<RoleConfig[]>(initialRoles)
   const [activeTab, setActiveTab] = useState<"users" | "roles">("users")
+  const [isLoadingUsers, setIsLoadingUsers] = useState(true)
+  const [isLoadingRoles, setIsLoadingRoles] = useState(true)
+  const [isSavingUser, setIsSavingUser] = useState(false)
+  const [isSavingRole, setIsSavingRole] = useState(false)
+  const [userError, setUserError] = useState("")
+  const [roleError, setRoleError] = useState("")
   const [showUserModal, setShowUserModal] = useState(false)
   const [userModalMode, setUserModalMode] = useState<ModalMode>("create")
   const [editingUser, setEditingUser] = useState<User | null>(null)
@@ -131,6 +107,35 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     () => new Map(roles.map((role) => [role.id, role])),
     [roles],
   )
+
+  useEffect(() => {
+    let isMounted = true
+
+    Promise.all([listProfiles(), listRoles()])
+      .then(([profiles, storedRoles]) => {
+        if (!isMounted) return
+        setUsers(profiles)
+        setRoles(storedRoles.length ? storedRoles : initialRoles)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        const message =
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar usuarios y roles."
+        setUserError(message)
+        setRoleError(message)
+      })
+      .finally(() => {
+        if (!isMounted) return
+        setIsLoadingUsers(false)
+        setIsLoadingRoles(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const getUserPermissions = (user: User) => {
     const role = roleMap.get(user.role)
@@ -154,6 +159,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   }
 
   const openCreateUser = () => {
+    setUserError("")
     setUserModalMode("create")
     setEditingUser(null)
     setUserName("")
@@ -165,6 +171,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   }
 
   const openEditUser = (user: User) => {
+    setUserError("")
     setUserModalMode("edit")
     setEditingUser(user)
     setUserName(user.name)
@@ -175,47 +182,57 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     setShowUserModal(true)
   }
 
-  const handleSaveUser = () => {
+  const handleSaveUser = async () => {
     const trimmedName = userName.trim()
     const trimmedEmail = userEmail.trim()
 
     if (!trimmedName || !trimmedEmail) return
+    if (userModalMode === "edit" && !editingUser) return
+    if (userModalMode === "create" && !temporaryPassword.trim()) return
 
-    if (userModalMode === "create") {
-      setUsers((currentUsers) => [
-        ...currentUsers,
-        {
-          id: Date.now().toString(),
+    setIsSavingUser(true)
+    setUserError("")
+
+    try {
+      if (userModalMode === "create") {
+        const createdUser = await createProfileUser({
           name: trimmedName,
           email: trimmedEmail,
+          password: temporaryPassword,
           role: selectedRole,
-          createdAt: new Date().toISOString().split("T")[0],
           extraPermissions:
             selectedRole === "admin" ? [] : selectedExtraPermissions,
-        },
-      ])
+        })
+
+        setUsers((currentUsers) => [createdUser, ...currentUsers])
+      } else if (editingUser) {
+        const savedUser = await updateProfile({
+          id: editingUser.id,
+          name: trimmedName,
+          role: selectedRole,
+          extraPermissions:
+            selectedRole === "admin" ? [] : selectedExtraPermissions,
+        })
+
+        setUsers((currentUsers) =>
+          currentUsers.map((user) =>
+            user.id === savedUser.id ? savedUser : user,
+          ),
+        )
+      }
+
       setShowUserModal(false)
-      return
+      setEditingUser(null)
+      setTemporaryPassword("")
+    } catch (error) {
+      setUserError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el usuario.",
+      )
+    } finally {
+      setIsSavingUser(false)
     }
-
-    if (!editingUser) return
-
-    setUsers((currentUsers) =>
-      currentUsers.map((user) =>
-        user.id === editingUser.id
-          ? {
-              ...user,
-              name: trimmedName,
-              email: trimmedEmail,
-              role: selectedRole,
-              extraPermissions:
-                selectedRole === "admin" ? [] : selectedExtraPermissions,
-            }
-          : user,
-      ),
-    )
-    setShowUserModal(false)
-    setEditingUser(null)
   }
 
   const handleDeleteUser = (id: string) => {
@@ -224,6 +241,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   }
 
   const openCreateRole = () => {
+    setRoleError("")
     setRoleModalMode("create")
     setEditingRole(null)
     setRoleName("")
@@ -233,6 +251,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   }
 
   const openEditRole = (role: RoleConfig) => {
+    setRoleError("")
     setRoleModalMode("edit")
     setEditingRole(role)
     setRoleName(role.label)
@@ -241,54 +260,80 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     setShowRoleModal(true)
   }
 
-  const handleSaveRole = () => {
+  const handleSaveRole = async () => {
     const trimmedName = roleName.trim()
     if (!trimmedName) return
 
-    if (roleModalMode === "edit" && editingRole) {
-      setRoles((currentRoles) =>
-        currentRoles.map((role) =>
-          role.id === editingRole.id
-            ? {
-                ...role,
-                label: trimmedName,
-                description: roleDescription.trim(),
-                permissions: role.locked ? allPermissions : roleSelectedPermissions,
-              }
-            : role,
-        ),
-      )
-    } else {
-      const roleId = createRoleId(trimmedName)
-      if (!roleId || roles.some((role) => role.id === roleId)) return
+    setIsSavingRole(true)
+    setRoleError("")
 
-      setRoles((currentRoles) => [
-        ...currentRoles,
-        {
+    try {
+      if (roleModalMode === "edit" && editingRole) {
+        const savedRole = await saveRole({
+          ...editingRole,
+          label: trimmedName,
+          description: roleDescription.trim(),
+          permissions: editingRole.locked ? allPermissions : roleSelectedPermissions,
+        })
+
+        setRoles((currentRoles) =>
+          currentRoles.map((role) =>
+            role.id === savedRole.id ? savedRole : role,
+          ),
+        )
+      } else {
+        const roleId = createRoleId(trimmedName)
+        if (!roleId || roles.some((role) => role.id === roleId)) return
+
+        const savedRole = await saveRole({
           id: roleId,
           label: trimmedName,
           description: roleDescription.trim() || "Rol personalizado",
-          color: roleColors[currentRoles.length % roleColors.length],
+          color: roleColors[roles.length % roleColors.length],
           permissions: roleSelectedPermissions,
-        },
-      ])
-    }
+          locked: false,
+        })
 
-    setShowRoleModal(false)
-    setEditingRole(null)
+        setRoles((currentRoles) => [...currentRoles, savedRole])
+      }
+
+      setShowRoleModal(false)
+      setEditingRole(null)
+    } catch (error) {
+      setRoleError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo guardar el rol.",
+      )
+    } finally {
+      setIsSavingRole(false)
+    }
   }
 
-  const handleDeleteRole = (role: RoleConfig) => {
+  const handleDeleteRole = async (role: RoleConfig) => {
     if (role.locked) return
     if (!confirm(`¿Eliminar el rol ${role.label}?`)) return
 
     const fallbackRole = "encuestador"
-    setRoles((currentRoles) => currentRoles.filter((item) => item.id !== role.id))
-    setUsers((currentUsers) =>
-      currentUsers.map((user) =>
-        user.role === role.id ? { ...user, role: fallbackRole } : user,
-      ),
-    )
+    setRoleError("")
+
+    try {
+      await deleteRole(role.id, fallbackRole)
+      setRoles((currentRoles) => currentRoles.filter((item) => item.id !== role.id))
+      setUsers((currentUsers) =>
+        currentUsers.map((user) =>
+          user.role === role.id
+            ? { ...user, role: fallbackRole, extraPermissions: [] }
+            : user,
+        ),
+      )
+    } catch (error) {
+      setRoleError(
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar el rol.",
+      )
+    }
   }
 
   return (
@@ -352,6 +397,25 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
             </Button>
           </div>
 
+          {userError ? (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {userError}
+            </div>
+          ) : null}
+
+          {isLoadingUsers ? (
+            <Card className="p-6 text-sm text-muted-foreground">
+              Cargando usuarios...
+            </Card>
+          ) : null}
+
+          {!isLoadingUsers && users.length === 0 ? (
+            <Card className="p-6 text-sm text-muted-foreground">
+              No hay perfiles disponibles. Crea usuarios en Supabase Auth y asigna
+              el rol admin al perfil inicial.
+            </Card>
+          ) : null}
+
           <div className="grid gap-4">
             {users.map((user) => {
               const role = roleMap.get(user.role)
@@ -408,13 +472,6 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                         >
                           <Edit2 className="h-4 w-4" />
                         </button>
-                        <button
-                          onClick={() => handleDeleteUser(user.id)}
-                          className="rounded-lg p-2 text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
-                          title="Eliminar usuario"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </button>
                       </div>
                     </div>
                   </Card>
@@ -436,6 +493,18 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
               Nuevo Rol
             </Button>
           </div>
+
+          {roleError ? (
+            <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+              {roleError}
+            </div>
+          ) : null}
+
+          {isLoadingRoles ? (
+            <Card className="p-6 text-sm text-muted-foreground">
+              Cargando roles...
+            </Card>
+          ) : null}
 
           <div className="grid gap-6 md:grid-cols-2">
             {roles.map((role) => (
@@ -536,29 +605,25 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                 <Input
                   type="email"
                   value={userEmail}
+                  disabled={userModalMode === "edit"}
                   onChange={(event) => setUserEmail(event.target.value)}
                   placeholder="usuario@empresa.com"
                 />
               </div>
 
-              <div>
-                <label className="mb-2 block text-sm font-medium text-foreground">
-                  Contrasena temporal
-                </label>
-                <Input
-                  type="text"
-                  value={temporaryPassword}
-                  onChange={(event) => setTemporaryPassword(event.target.value)}
-                  placeholder={
-                    userModalMode === "create"
-                      ? "Clave inicial entregada por el administrador"
-                      : "Dejar vacio si no cambia"
-                  }
-                />
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Solo simula el flujo frontend; luego el backend guardara y enviara esta credencial.
-                </p>
-              </div>
+              {userModalMode === "create" ? (
+                <div>
+                  <label className="mb-2 block text-sm font-medium text-foreground">
+                    Contrasena temporal
+                  </label>
+                  <Input
+                    type="text"
+                    value={temporaryPassword}
+                    onChange={(event) => setTemporaryPassword(event.target.value)}
+                    placeholder="Minimo 6 caracteres"
+                  />
+                </div>
+              ) : null}
             </div>
 
             <div className="mb-6">
@@ -644,9 +709,18 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
               <Button
                 onClick={handleSaveUser}
                 className="flex-1"
-                disabled={!userName.trim() || !userEmail.trim()}
+                disabled={
+                  !userName.trim() ||
+                  !userEmail.trim() ||
+                  (userModalMode === "create" && !temporaryPassword.trim()) ||
+                  isSavingUser
+                }
               >
-                {userModalMode === "create" ? "Crear cuenta" : "Guardar usuario"}
+                {isSavingUser
+                  ? "Guardando..."
+                  : userModalMode === "create"
+                    ? "Crear cuenta"
+                    : "Guardar usuario"}
               </Button>
             </div>
           </motion.div>
@@ -734,8 +808,12 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
               >
                 Cancelar
               </Button>
-              <Button onClick={handleSaveRole} className="flex-1" disabled={!roleName.trim()}>
-                Guardar rol
+              <Button
+                onClick={handleSaveRole}
+                className="flex-1"
+                disabled={!roleName.trim() || isSavingRole}
+              >
+                {isSavingRole ? "Guardando..." : "Guardar rol"}
               </Button>
             </div>
           </motion.div>
