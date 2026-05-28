@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { VisualLearning } from "@/components/visual-learning"
 import { Library } from "@/components/library"
+import { ActivityFeed } from "@/components/activity-feed"
 import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { SectionEditModal } from "@/components/section-edit-modal"
 import { ItemEditModal } from "@/components/item-edit-modal"
@@ -117,7 +118,7 @@ const mainSections = [
     type: "updates" as SectionType,
     icon: RefreshCw,
     title: "Actualizaciones",
-    description: "Cambios y novedades recientes",
+    description: "Cambios recientes en otras secciones",
     color: "bg-cyan-500",
   },
 ]
@@ -229,6 +230,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
     return (
       <>
         <SectionDetail
+          projectId={projectId}
           sectionId={activeSection}
           section={currentSection}
           onBack={() => setActiveSection(null)}
@@ -499,6 +501,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 }
 
 function SectionDetail({
+  projectId,
   sectionId,
   section,
   onBack,
@@ -510,6 +513,7 @@ function SectionDetail({
   canAdd,
   userRole,
 }: {
+  projectId: string
   sectionId: string
   section: ProjectSectionView
   onBack: () => void
@@ -572,6 +576,7 @@ function SectionDetail({
       {/* Content */}
       <main className="p-4 lg:p-8 max-w-4xl mx-auto">
         <SectionContent 
+          projectId={projectId}
           sectionId={section.type} 
           sectionRecordId={section.id}
           canAdd={canAdd}
@@ -585,6 +590,7 @@ function SectionDetail({
 }
 
 function SectionContent({ 
+  projectId,
   sectionId,
   sectionRecordId,
   canAdd,
@@ -592,6 +598,7 @@ function SectionContent({
   canDelete,
   userRole,
 }: { 
+  projectId: string
   sectionId: string
   sectionRecordId: string
   canAdd?: boolean
@@ -657,23 +664,19 @@ function SectionContent({
         />
       )
     case "updates":
-      return (
-        <SectionItemsContent
-          sectionId={sectionRecordId}
-          itemType="update"
-          icon={RefreshCw}
-          accentClass="bg-cyan-500/20"
-          iconClass="text-cyan-500"
-          addButtonClass="bg-cyan-500/10 text-cyan-600 hover:bg-cyan-500/20 border-cyan-500/30"
-          addLabel="Agregar Nueva Actualizacion"
-          canAdd={canAdd}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
-      )
+      return <ProjectUpdatesContent projectId={projectId} />
     default:
       return null
   }
+}
+
+function ProjectUpdatesContent({ projectId }: { projectId: string }) {
+  return (
+    <ActivityFeed
+      projectId={projectId}
+      emptyLabel="Todavia no hay cambios registrados en las otras secciones de este proyecto."
+    />
+  )
 }
 
 function useSectionItems(sectionId: string) {

@@ -48,6 +48,22 @@ export interface SectionItemRecord {
   sourceUrl?: string
   metadata: Record<string, Json>
   sortOrder: number
+  createdAt: string
+  updatedAt: string
+}
+
+export interface ProjectActivityRecord {
+  id: string
+  projectId: string
+  projectName: string
+  sectionId: string
+  sectionTitle: string
+  sectionType: SectionType
+  itemType: SectionItemType
+  title: string
+  description: string
+  action: "created" | "updated"
+  occurredAt: string
 }
 
 const sectionColors: Record<SectionType, string> = {
@@ -318,6 +334,8 @@ function mapSectionItem(item: {
   source_url: string | null
   metadata: Json
   sort_order: number
+  created_at: string
+  updated_at: string
 }): SectionItemRecord {
   return {
     id: item.id,
@@ -330,6 +348,8 @@ function mapSectionItem(item: {
     sourceUrl: item.source_url ?? undefined,
     metadata: toPlainMetadata(item.metadata),
     sortOrder: item.sort_order,
+    createdAt: item.created_at,
+    updatedAt: item.updated_at,
   }
 }
 
@@ -338,7 +358,7 @@ export async function listSectionItems(sectionId: string) {
   const { data, error } = await supabase
     .from("section_items")
     .select(
-      "id, section_id, type, title, description, content, image_url, source_url, metadata, sort_order",
+      "id, section_id, type, title, description, content, image_url, source_url, metadata, sort_order, created_at, updated_at",
     )
     .eq("section_id", sectionId)
     .order("sort_order", { ascending: true })
@@ -379,7 +399,7 @@ export async function saveSectionItem(input: {
       sort_order: input.sortOrder ?? 0,
     })
     .select(
-      "id, section_id, type, title, description, content, image_url, source_url, metadata, sort_order",
+      "id, section_id, type, title, description, content, image_url, source_url, metadata, sort_order, created_at, updated_at",
     )
     .single()
 
@@ -393,4 +413,53 @@ export async function deleteSectionItem(itemId: string) {
   const { error } = await supabase.from("section_items").delete().eq("id", itemId)
 
   if (error) throw new Error(error.message)
+}
+
+function isUpdatedAfterCreate(item: SectionItemRecord) {
+  return new Date(item.updatedAt).getTime() - new Date(item.createdAt).getTime() > 1000
+}
+
+export async function listProjectActivity(projectId?: string) {
+  const groups = await listProjectGroupsWithProjects()
+  const projects = groups.flatMap((group) => group.projects)
+  const targetProjects = projectId
+    ? projects.filter((project) => project.id === projectId)
+    : projects
+
+  const activities = await Promise.all(
+    targetProjects.map(async (project) => {
+      const sections = await listProjectSections(project.id)
+      const contentSections = sections.filter(
+        (section) => section.type !== "updates",
+      )
+      const sectionItems = await Promise.all(
+        contentSections.map(async (section) => {
+          const items = await listSectionItems(section.id)
+          return items.map<ProjectActivityRecord>((item) => ({
+            id: item.id,
+            projectId: project.id,
+            projectName: project.name,
+            sectionId: section.id,
+            sectionTitle: section.title,
+            sectionType: section.type,
+            itemType: item.type,
+            title: item.title,
+            description: item.description,
+            action: isUpdatedAfterCreate(item) ? "updated" : "created",
+            occurredAt: isUpdatedAfterCreate(item) ? item.updatedAt : item.createdAt,
+          }))
+        }),
+      )
+
+      return sectionItems.flat()
+    }),
+  )
+
+  return activities
+    .flat()
+    .sort(
+      (first, second) =>
+        new Date(second.occurredAt).getTime() -
+        new Date(first.occurredAt).getTime(),
+    )
 }

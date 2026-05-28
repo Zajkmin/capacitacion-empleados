@@ -27,7 +27,7 @@ interface SidebarProps {
 const navItems = [
   { id: "dashboard" as ViewType, icon: LayoutDashboard, label: "Inicio" },
   { id: "training" as ViewType, icon: BookOpen, label: "Capacitación" },
-  { id: "updates" as ViewType, icon: Bell, label: "Actualizaciones" },
+  { id: "updates" as ViewType, icon: Bell, label: "Notificaciones" },
   { id: "profile" as ViewType, icon: Settings, label: "Mi Perfil" },
   { id: "admin" as ViewType, icon: Lock, label: "Administración", adminOnly: true },
 ]

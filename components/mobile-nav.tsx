@@ -17,7 +17,7 @@ interface MobileNavProps {
 const navItems = [
   { id: "dashboard" as ViewType, icon: LayoutDashboard, label: "Inicio" },
   { id: "training" as ViewType, icon: BookOpen, label: "Capacitación" },
-  { id: "updates" as ViewType, icon: Bell, label: "Alertas" },
+  { id: "updates" as ViewType, icon: Bell, label: "Notif." },
 ]
 
 export function MobileNav({ currentView, onNavigate, onLogout }: MobileNavProps) {

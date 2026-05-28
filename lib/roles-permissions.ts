@@ -42,7 +42,7 @@ export const permissionLabels: Record<Permission, string> = {
   delete_section: "Eliminar contenido",
   manage_users: "Gestionar usuarios",
   view_training: "Ver capacitacion",
-  view_updates: "Ver actualizaciones",
+  view_updates: "Ver notificaciones",
   manage_roles: "Gestionar roles y permisos",
 }
 

@@ -1,0 +1,209 @@
+"use client"
+
+import { useEffect, useMemo, useState } from "react"
+import { motion } from "framer-motion"
+import {
+  AlertTriangle,
+  Bell,
+  BookOpen,
+  Camera,
+  CheckCircle2,
+  Clock,
+  FileImage,
+  FolderOpen,
+  Lightbulb,
+  RefreshCw,
+  XCircle,
+} from "lucide-react"
+
+import {
+  listProjectActivity,
+  type ProjectActivityRecord,
+  type SectionItemType,
+} from "@/lib/supabase/projects"
+
+type ActivityFeedProps = {
+  projectId?: string
+  showProject?: boolean
+  emptyLabel?: string
+}
+
+const typeConfig: Record<
+  string,
+  { icon: typeof BookOpen; label: string; color: string }
+> = {
+  rule: { icon: BookOpen, label: "Regla", color: "text-primary bg-primary/20" },
+  exception: { icon: AlertTriangle, label: "Excepcion", color: "text-warning bg-warning/20" },
+  photo: { icon: Camera, label: "Foto", color: "text-emerald-500 bg-emerald-500/20" },
+  error: { icon: XCircle, label: "Error", color: "text-destructive bg-destructive/20" },
+  library: { icon: FolderOpen, label: "Biblioteca", color: "text-slate-500 bg-slate-500/20" },
+  "visual-learning": { icon: Lightbulb, label: "Aprendizaje visual", color: "text-violet-500 bg-violet-500/20" },
+  update: { icon: RefreshCw, label: "Actualizacion", color: "text-cyan-500 bg-cyan-500/20" },
+}
+
+function formatActivityDate(value: string) {
+  return new Intl.DateTimeFormat("es-PY", {
+    day: "2-digit",
+    month: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(new Date(value))
+}
+
+function getActivityTitle(activity: ProjectActivityRecord) {
+  const verb = activity.action === "updated" ? "Se actualizo" : "Se agrego"
+  return `${verb} ${activity.title}`
+}
+
+function getActivityDescription(activity: ProjectActivityRecord, showProject?: boolean) {
+  const context = showProject
+    ? `${activity.projectName} - ${activity.sectionTitle}`
+    : activity.sectionTitle
+
+  return `${context}${activity.description ? `: ${activity.description}` : ""}`
+}
+
+export function ActivityFeed({
+  projectId,
+  showProject = false,
+  emptyLabel = "No hay notificaciones recientes.",
+}: ActivityFeedProps) {
+  const [activities, setActivities] = useState<ProjectActivityRecord[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [selectedType, setSelectedType] = useState<SectionItemType | "all">("all")
+
+  useEffect(() => {
+    let isMounted = true
+
+    listProjectActivity(projectId)
+      .then((items) => {
+        if (isMounted) setActivities(items)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar las notificaciones.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [projectId])
+
+  const filters = useMemo(() => {
+    const uniqueTypes = Array.from(
+      new Set(activities.map((activity) => activity.itemType)),
+    )
+
+    return ["all", ...uniqueTypes] as Array<SectionItemType | "all">
+  }, [activities])
+
+  const filteredActivities = activities.filter(
+    (activity) => selectedType === "all" || activity.itemType === selectedType,
+  )
+
+  return (
+    <div className="space-y-4">
+      {errorMessage ? (
+        <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          {errorMessage}
+        </div>
+      ) : null}
+
+      {filters.length > 1 ? (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {filters.map((type) => (
+            <button
+              key={type}
+              type="button"
+              onClick={() => setSelectedType(type)}
+              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+                selectedType === type
+                  ? "bg-primary text-primary-foreground"
+                  : "border border-border bg-card text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              {type === "all" ? "Todo" : typeConfig[type]?.label ?? type}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
+      {isLoading ? (
+        <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+          Cargando notificaciones...
+        </div>
+      ) : null}
+
+      {!isLoading && filteredActivities.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
+          <Bell className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+        </div>
+      ) : null}
+
+      <div className="space-y-3">
+        {filteredActivities.map((activity, index) => {
+          const config = typeConfig[activity.itemType] ?? {
+            icon: FileImage,
+            label: activity.itemType,
+            color: "text-muted-foreground bg-muted",
+          }
+          const Icon = config.icon
+
+          return (
+            <motion.article
+              key={activity.id}
+              className="rounded-2xl border border-border bg-card p-5 shadow-sm"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04 }}
+            >
+              <div className="flex items-start gap-4">
+                <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${config.color}`}>
+                  <Icon className="h-5 w-5" />
+                </div>
+
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <h3 className="font-semibold text-foreground">
+                      {getActivityTitle(activity)}
+                    </h3>
+                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                      <Clock className="h-3.5 w-3.5" />
+                      {formatActivityDate(activity.occurredAt)}
+                    </span>
+                  </div>
+                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                    {getActivityDescription(activity, showProject)}
+                  </p>
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    <span className={`rounded-md px-2 py-1 text-xs font-medium ${config.color}`}>
+                      {config.label}
+                    </span>
+                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                      {activity.action === "updated" ? "Modificado" : "Nuevo"}
+                    </span>
+                    {activity.action === "created" ? (
+                      <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success">
+                        <CheckCircle2 className="h-3 w-3" />
+                        Agregado
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </motion.article>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
