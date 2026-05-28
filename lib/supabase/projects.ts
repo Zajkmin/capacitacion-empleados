@@ -28,7 +28,14 @@ export interface ProjectSectionRecord {
   color: string
 }
 
-export type SectionItemType = "rule" | "exception" | "photo" | "error" | "update"
+export type SectionItemType =
+  | "rule"
+  | "exception"
+  | "photo"
+  | "error"
+  | "update"
+  | "library"
+  | "visual-learning"
 
 export interface SectionItemRecord {
   id: string

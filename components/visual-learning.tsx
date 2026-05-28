@@ -16,12 +16,21 @@ import {
   Trash2,
   X,
 } from "lucide-react"
+
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { useConfirmAction } from "@/components/confirm-action-dialog"
+import {
+  deleteSectionItem,
+  listSectionItems,
+  saveSectionItem,
+  type SectionItemRecord,
+} from "@/lib/supabase/projects"
+import { uploadPublicFile } from "@/lib/supabase/storage"
 
 interface VisualLearningProps {
   onBack: () => void
+  sectionId: string
   canAdd?: boolean
   canEdit?: boolean
   canDelete?: boolean
@@ -44,113 +53,154 @@ interface Comparison {
   tip: string
 }
 
-const initialComparisons: Comparison[] = [
-  {
-    id: "1",
-    title: "Exhibición de Productos en Góndola",
-    description: "Aprende a identificar una exhibición correcta vs incorrecta",
+type ComparisonFormData = Omit<Comparison, "id"> & {
+  correctImageFile?: File | null
+  incorrectImageFile?: File | null
+}
+
+function metadataString(item: SectionItemRecord, key: string, fallback = "") {
+  const value = item.metadata[key]
+  return typeof value === "string" ? value : fallback
+}
+
+function metadataStringArray(item: SectionItemRecord, key: string) {
+  const value = item.metadata[key]
+  return Array.isArray(value)
+    ? value.filter((entry): entry is string => typeof entry === "string")
+    : []
+}
+
+function mapItemToComparison(item: SectionItemRecord): Comparison {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description,
     correct: {
-      label: "Correcto",
-      points: [
-        "Productos alineados al frente",
-        "Etiquetas de precio visibles",
-        "Sin espacios vacíos",
-        "Facing consistente",
-      ],
+      label: metadataString(item, "correctLabel", "Correcto"),
+      points: metadataStringArray(item, "correctPoints"),
+      imageUrl: metadataString(item, "correctImageUrl", item.imageUrl ?? "") || undefined,
     },
     incorrect: {
-      label: "Incorrecto",
-      points: [
-        "Productos desordenados",
-        "Precios ocultos o faltantes",
-        "Huecos en el estante",
-        "Facing irregular",
-      ],
+      label: metadataString(item, "incorrectLabel", "Incorrecto"),
+      points: metadataStringArray(item, "incorrectPoints"),
+      imageUrl: metadataString(item, "incorrectImageUrl") || undefined,
     },
-    tip: "Siempre verifica que el cliente pueda ver el precio sin mover el producto",
-  },
-  {
-    id: "2",
-    title: "Colocación de Material POP",
-    description: "Ubicación correcta de material promocional",
-    correct: {
-      label: "Correcto",
-      points: [
-        "A la altura de los ojos",
-        "Sin obstruir productos",
-        "Información legible",
-        "Fecha vigente",
-      ],
-    },
-    incorrect: {
-      label: "Incorrecto",
-      points: [
-        "Muy alto o muy bajo",
-        "Tapando productos",
-        "Texto ilegible",
-        "Promoción vencida",
-      ],
-    },
-    tip: "El material POP debe complementar la exhibición, no competir con ella",
-  },
-  {
-    id: "3",
-    title: "Control de Fechas de Vencimiento",
-    description: "Identificación de productos próximos a vencer",
-    correct: {
-      label: "Correcto",
-      points: [
-        "Rotación FIFO aplicada",
-        "Productos más antiguos adelante",
-        "Fechas claramente visibles",
-        "Stock ordenado por fecha",
-      ],
-    },
-    incorrect: {
-      label: "Incorrecto",
-      points: [
-        "Productos nuevos adelante",
-        "Fechas ocultas",
-        "Sin rotación de inventario",
-        "Productos vencidos en exhibición",
-      ],
-    },
-    tip: "Revisa siempre la segunda fila de productos, ahí suelen estar los más antiguos",
-  },
-]
+    tip: metadataString(item, "tip", item.content ?? ""),
+  }
+}
 
 export function VisualLearning({
   onBack,
+  sectionId,
   canAdd,
   canEdit,
   canDelete,
 }: VisualLearningProps) {
-  const [comparisons, setComparisons] = useState(initialComparisons)
+  const [comparisons, setComparisons] = useState<Comparison[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showTip, setShowTip] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingComparison, setEditingComparison] = useState<Comparison | null>(null)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const { confirmAction, confirmDialog } = useConfirmAction()
 
   const currentComparison = comparisons[currentIndex]
 
-  const handleSaveComparison = (comparisonData: Omit<Comparison, "id">) => {
-    if (editingComparison) {
-      setComparisons((items) =>
-        items.map((item) =>
-          item.id === editingComparison.id ? { ...item, ...comparisonData } : item
+  useEffect(() => {
+    let isMounted = true
+
+    listSectionItems(sectionId)
+      .then((items) => {
+        if (!isMounted) return
+        setComparisons(
+          items
+            .filter((item) => item.type === "visual-learning")
+            .map(mapItemToComparison),
         )
-      )
-    } else {
-      setComparisons((items) => [
-        ...items,
-        { id: Date.now().toString(), ...comparisonData },
-      ])
-      setCurrentIndex(comparisons.length)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar las comparativas.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
     }
-    setShowModal(false)
-    setEditingComparison(null)
-    setShowTip(false)
+  }, [sectionId])
+
+  const handleSaveComparison = async (comparisonData: ComparisonFormData) => {
+    setIsSaving(true)
+    setErrorMessage("")
+
+    try {
+      const uploadedCorrectImage = comparisonData.correctImageFile
+        ? await uploadPublicFile({
+            bucket: "section-images",
+            file: comparisonData.correctImageFile,
+            folder: "visual-learning",
+          })
+        : null
+      const uploadedIncorrectImage = comparisonData.incorrectImageFile
+        ? await uploadPublicFile({
+            bucket: "section-images",
+            file: comparisonData.incorrectImageFile,
+            folder: "visual-learning",
+          })
+        : null
+      const savedItem = await saveSectionItem({
+        id: editingComparison?.id,
+        sectionId,
+        type: "visual-learning",
+        title: comparisonData.title,
+        description: comparisonData.description,
+        content: comparisonData.tip,
+        imageUrl: uploadedCorrectImage?.publicUrl ?? comparisonData.correct.imageUrl,
+        metadata: {
+          correctLabel: comparisonData.correct.label,
+          correctPoints: comparisonData.correct.points,
+          correctImageUrl:
+            uploadedCorrectImage?.publicUrl ?? comparisonData.correct.imageUrl ?? "",
+          incorrectLabel: comparisonData.incorrect.label,
+          incorrectPoints: comparisonData.incorrect.points,
+          incorrectImageUrl:
+            uploadedIncorrectImage?.publicUrl ?? comparisonData.incorrect.imageUrl ?? "",
+          tip: comparisonData.tip,
+        },
+        sortOrder: editingComparison
+          ? comparisons.findIndex((item) => item.id === editingComparison.id)
+          : comparisons.length,
+      })
+      const savedComparison = mapItemToComparison(savedItem)
+
+      setComparisons((items) => {
+        if (editingComparison) {
+          return items.map((item) =>
+            item.id === editingComparison.id ? savedComparison : item,
+          )
+        }
+
+        setCurrentIndex(items.length)
+        return [...items, savedComparison]
+      })
+      setShowModal(false)
+      setEditingComparison(null)
+      setShowTip(false)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "No se pudo guardar la comparativa.",
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDeleteCurrent = async () => {
@@ -162,10 +212,24 @@ export function VisualLearning({
     })
     if (!confirmed) return
 
-    const nextComparisons = comparisons.filter((item) => item.id !== currentComparison.id)
-    setComparisons(nextComparisons)
-    setCurrentIndex((index) => Math.max(0, Math.min(index, nextComparisons.length - 1)))
-    setShowTip(false)
+    try {
+      await deleteSectionItem(currentComparison.id)
+      const nextComparisons = comparisons.filter(
+        (item) => item.id !== currentComparison.id,
+      )
+      setComparisons(nextComparisons)
+      setCurrentIndex((index) =>
+        Math.max(0, Math.min(index, nextComparisons.length - 1)),
+      )
+      setShowTip(false)
+      setErrorMessage("")
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar la comparativa.",
+      )
+    }
   }
 
   const goNext = () => {
@@ -259,7 +323,19 @@ export function VisualLearning({
       </header>
 
       <main className="p-4 lg:p-8">
-        {!currentComparison ? (
+        {errorMessage ? (
+          <div className="mx-auto mb-4 max-w-6xl rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {isLoading ? (
+          <div className="mx-auto max-w-6xl rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+            Cargando comparativas...
+          </div>
+        ) : null}
+
+        {!isLoading && !currentComparison ? (
           <div className="max-w-3xl mx-auto text-center py-16">
             <Lightbulb className="w-16 h-16 text-muted-foreground/30 mx-auto mb-4" />
             <p className="text-muted-foreground">
@@ -268,7 +344,9 @@ export function VisualLearning({
                 : "No hay comparativas disponibles."}
             </p>
           </div>
-        ) : (
+        ) : null}
+
+        {currentComparison ? (
           <motion.div
             key={currentComparison.id}
             initial={{ opacity: 0, x: 20 }}
@@ -375,7 +453,7 @@ export function VisualLearning({
               </button>
             </div>
           </motion.div>
-        )}
+        ) : null}
       </main>
 
       <ComparisonEditModal
@@ -383,6 +461,7 @@ export function VisualLearning({
         isNew={!editingComparison}
         comparison={editingComparison}
         onSave={handleSaveComparison}
+        isSaving={isSaving}
         onClose={() => {
           setShowModal(false)
           setEditingComparison(null)
@@ -427,7 +506,7 @@ function ComparisonPanel({
         <h3 className={`text-xl font-bold ${toneClass}`}>{label}</h3>
       </div>
 
-      <div className={`aspect-video rounded-xl ${imageClass} border flex items-center justify-center mb-4 relative group cursor-pointer`}>
+      <div className={`aspect-video rounded-xl ${imageClass} border flex items-center justify-center mb-4 relative group cursor-pointer overflow-hidden`}>
         {imageUrl ? (
           <img src={imageUrl} alt="" className="h-full w-full object-cover" />
         ) : (
@@ -464,12 +543,14 @@ function ComparisonEditModal({
   isNew,
   comparison,
   onSave,
+  isSaving,
   onClose,
 }: {
   isOpen: boolean
   isNew: boolean
   comparison: Comparison | null
-  onSave: (comparison: Omit<Comparison, "id">) => void
+  onSave: (comparison: ComparisonFormData) => void
+  isSaving?: boolean
   onClose: () => void
 }) {
   const [title, setTitle] = useState("")
@@ -478,6 +559,8 @@ function ComparisonEditModal({
   const [incorrectPoints, setIncorrectPoints] = useState("")
   const [correctImageUrl, setCorrectImageUrl] = useState("")
   const [incorrectImageUrl, setIncorrectImageUrl] = useState("")
+  const [correctImageFile, setCorrectImageFile] = useState<File | null>(null)
+  const [incorrectImageFile, setIncorrectImageFile] = useState<File | null>(null)
   const [tip, setTip] = useState("")
 
   useEffect(() => {
@@ -489,15 +572,19 @@ function ComparisonEditModal({
     setIncorrectPoints(comparison?.incorrect.points.join("\n") || "")
     setCorrectImageUrl(comparison?.correct.imageUrl || "")
     setIncorrectImageUrl(comparison?.incorrect.imageUrl || "")
+    setCorrectImageFile(null)
+    setIncorrectImageFile(null)
     setTip(comparison?.tip || "")
   }, [isOpen, comparison])
 
   const handleImageUpload = (
     file: File | undefined,
     onLoad: (imageUrl: string) => void,
+    onFile: (file: File | null) => void,
   ) => {
     if (!file) return
 
+    onFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -529,6 +616,8 @@ function ComparisonEditModal({
           .map((point) => point.trim())
           .filter(Boolean),
       },
+      correctImageFile,
+      incorrectImageFile,
       tip: tip.trim(),
     })
   }
@@ -560,14 +649,14 @@ function ComparisonEditModal({
         <div className="p-6 space-y-6">
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Título
+              Titulo
             </label>
             <Input value={title} onChange={(event) => setTitle(event.target.value)} />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-foreground mb-2">
-              Descripción
+              Descripcion
             </label>
             <textarea
               value={description}
@@ -586,7 +675,7 @@ function ComparisonEditModal({
                 value={correctPoints}
                 onChange={(event) => setCorrectPoints(event.target.value)}
                 rows={5}
-                placeholder="Un punto por línea"
+                placeholder="Un punto por linea"
                 className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
             </div>
@@ -598,7 +687,7 @@ function ComparisonEditModal({
                 value={incorrectPoints}
                 onChange={(event) => setIncorrectPoints(event.target.value)}
                 rows={5}
-                placeholder="Un punto por línea"
+                placeholder="Un punto por linea"
                 className="w-full px-4 py-2 rounded-lg border border-border bg-background text-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
               />
             </div>
@@ -619,7 +708,11 @@ function ComparisonEditModal({
                 type="file"
                 accept="image/*"
                 onChange={(event) =>
-                  handleImageUpload(event.target.files?.[0], setCorrectImageUrl)
+                  handleImageUpload(
+                    event.target.files?.[0],
+                    setCorrectImageUrl,
+                    setCorrectImageFile,
+                  )
                 }
               />
               <div className="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
@@ -644,7 +737,11 @@ function ComparisonEditModal({
                 type="file"
                 accept="image/*"
                 onChange={(event) =>
-                  handleImageUpload(event.target.files?.[0], setIncorrectImageUrl)
+                  handleImageUpload(
+                    event.target.files?.[0],
+                    setIncorrectImageUrl,
+                    setIncorrectImageFile,
+                  )
                 }
               />
               <div className="flex aspect-video items-center justify-center overflow-hidden rounded-lg border border-dashed border-border bg-muted/30">
@@ -677,9 +774,9 @@ function ComparisonEditModal({
           <Button
             onClick={handleSave}
             className="flex-1"
-            disabled={!title.trim() || !description.trim()}
+            disabled={!title.trim() || !description.trim() || isSaving}
           >
-            {isNew ? "Crear" : "Guardar"} comparativa
+            {isSaving ? "Guardando..." : `${isNew ? "Crear" : "Guardar"} comparativa`}
           </Button>
         </div>
       </motion.div>

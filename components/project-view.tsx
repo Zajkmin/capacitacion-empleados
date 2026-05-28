@@ -202,6 +202,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
         <>
           <VisualLearning
             onBack={() => setActiveSection(null)}
+            sectionId={currentSection.id}
             canAdd={canAdd}
             canEdit={canEdit}
             canDelete={canDelete}
