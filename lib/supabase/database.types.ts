@@ -231,6 +231,54 @@ export interface Database {
         }
         Relationships: []
       }
+      training_topics: {
+        Row: {
+          id: string
+          title: string
+          category: string
+          summary: string
+          body: string
+          content_type: string
+          media_url: string | null
+          visible_to: string[]
+          sort_order: number
+          created_by: string | null
+          updated_by: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          title: string
+          category?: string
+          summary?: string
+          body?: string
+          content_type?: string
+          media_url?: string | null
+          visible_to?: string[]
+          sort_order?: number
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          title?: string
+          category?: string
+          summary?: string
+          body?: string
+          content_type?: string
+          media_url?: string | null
+          visible_to?: string[]
+          sort_order?: number
+          created_by?: string | null
+          updated_by?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

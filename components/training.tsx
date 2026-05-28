@@ -37,29 +37,26 @@ import {
 import {
   defaultRoles,
   roleMetadata,
-  userHasPermission,
   type Permission,
   type UserRole,
 } from "@/lib/roles-permissions"
+import {
+  deleteTrainingTopic,
+  listTrainingTopics,
+  saveTrainingTopic,
+  type TrainingContentType,
+  type TrainingTopicRecord,
+} from "@/lib/supabase/training"
+import { uploadPublicFile } from "@/lib/supabase/storage"
 
 interface TrainingProps {
-  user: { name: string; email: string; role: UserRole; permissions?: Permission[] }
+  user: { id?: string; name: string; email: string; role: UserRole; permissions?: Permission[] }
   onBack: () => void
 }
 
-type TrainingContentType = "text" | "photo" | "video" | "link" | "pdf"
-
-interface TrainingTopic {
-  id: string
-  title: string
-  category: UserRole | "general"
-  order: number
-  summary: string
-  body: string
-  contentType: TrainingContentType
-  mediaUrl?: string
-  visibleTo: UserRole[]
-  updatedAt: string
+type TrainingTopic = TrainingTopicRecord
+type TrainingTopicFormData = Omit<TrainingTopic, "id"> & {
+  mediaFile?: File | null
 }
 
 const roleOptions = defaultRoles
@@ -80,21 +77,6 @@ const contentTypeIcons = {
   pdf: FileText,
 }
 
-const initialTopics: TrainingTopic[] = [
-  {
-    id: "1",
-    title: "Tipo de capacitacion",
-    category: "general",
-    order: 1,
-    summary: "Descripcion breve de la capacitacion.",
-    body: "Contenido detallado de la capacitacion. En este apartado se podran agregar instrucciones, explicaciones, imagenes, videos, enlaces o documentos relacionados con este tema.",
-    contentType: "photo",
-    mediaUrl: "https://placehold.co/900x500?text=Visual+de+capacitacion",
-    visibleTo: ["admin", "supervisor", "encuestador", "analista_calidad"],
-    updatedAt: new Date().toISOString().split("T")[0],
-  },
-]
-
 function getRoleLabel(role: UserRole | "general") {
   if (role === "general") return "General"
   return roleMetadata[role]?.label ?? role
@@ -109,18 +91,45 @@ function sortTopics(topics: TrainingTopic[]) {
 }
 
 export function Training({ user, onBack }: TrainingProps) {
-  const [topics, setTopics] = useState<TrainingTopic[]>(initialTopics)
+  const [topics, setTopics] = useState<TrainingTopic[]>([])
   const [query, setQuery] = useState("")
   const [categoryFilter, setCategoryFilter] = useState<UserRole | "general" | "all">("all")
   const [editingTopic, setEditingTopic] = useState<TrainingTopic | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<TrainingTopic | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [isLoading, setIsLoading] = useState(true)
+  const [isSaving, setIsSaving] = useState(false)
+  const [errorMessage, setErrorMessage] = useState("")
   const { confirmAction, confirmDialog } = useConfirmAction()
 
-  const canAdd = userHasPermission(user, "add_section")
-  const canEdit = userHasPermission(user, "edit_section")
-  const canDelete = userHasPermission(user, "delete_section")
-  const canManage = canAdd || canEdit || canDelete
+  const canAdd = user.role === "admin"
+  const canEdit = user.role === "admin"
+  const canDelete = user.role === "admin"
+
+  useEffect(() => {
+    let isMounted = true
+
+    listTrainingTopics()
+      .then((storedTopics) => {
+        if (!isMounted) return
+        setTopics(storedTopics)
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar las capacitaciones.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [])
 
   const visibleTopics = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase()
@@ -148,25 +157,54 @@ export function Training({ user, onBack }: TrainingProps) {
     setIsModalOpen(true)
   }
 
-  const handleSaveTopic = (topicData: Omit<TrainingTopic, "id">) => {
-    if (editingTopic) {
-      setTopics((currentTopics) =>
-        currentTopics.map((topic) =>
-          topic.id === editingTopic.id ? { ...topic, ...topicData } : topic,
-        ),
-      )
-      if (selectedTopic?.id === editingTopic.id) {
-        setSelectedTopic({ ...editingTopic, ...topicData })
-      }
-    } else {
-      setTopics((currentTopics) => [
-        ...currentTopics,
-        { id: Date.now().toString(), ...topicData },
-      ])
-    }
+  const handleSaveTopic = async (topicData: TrainingTopicFormData) => {
+    setIsSaving(true)
+    setErrorMessage("")
 
-    setIsModalOpen(false)
-    setEditingTopic(null)
+    try {
+      const uploadedMedia = topicData.mediaFile
+        ? await uploadPublicFile({
+            bucket: "training-media",
+            file: topicData.mediaFile,
+            folder: "training",
+          })
+        : null
+      const savedTopic = await saveTrainingTopic({
+        id: editingTopic?.id,
+        title: topicData.title,
+        category: topicData.category,
+        order: topicData.order,
+        summary: topicData.summary,
+        body: topicData.body,
+        contentType: topicData.contentType,
+        mediaUrl: uploadedMedia?.publicUrl ?? topicData.mediaUrl,
+        visibleTo: topicData.visibleTo,
+        userId: user.id,
+      })
+
+      setTopics((currentTopics) => {
+        if (editingTopic) {
+          return currentTopics.map((topic) =>
+            topic.id === editingTopic.id ? savedTopic : topic,
+          )
+        }
+
+        return sortTopics([...currentTopics, savedTopic])
+      })
+
+      if (selectedTopic?.id === savedTopic.id) {
+        setSelectedTopic(savedTopic)
+      }
+
+      setIsModalOpen(false)
+      setEditingTopic(null)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "No se pudo guardar la capacitacion.",
+      )
+    } finally {
+      setIsSaving(false)
+    }
   }
 
   const handleDeleteTopic = async (topicId: string) => {
@@ -179,11 +217,21 @@ export function Training({ user, onBack }: TrainingProps) {
     })
     if (!confirmed) return
 
-    setTopics((currentTopics) =>
-      currentTopics.filter((topic) => topic.id !== topicId),
-    )
-    if (selectedTopic?.id === topicId) {
-      setSelectedTopic(null)
+    try {
+      await deleteTrainingTopic(topicId)
+      setTopics((currentTopics) =>
+        currentTopics.filter((topic) => topic.id !== topicId),
+      )
+      if (selectedTopic?.id === topicId) {
+        setSelectedTopic(null)
+      }
+      setErrorMessage("")
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo eliminar la capacitacion.",
+      )
     }
   }
 
@@ -214,6 +262,7 @@ export function Training({ user, onBack }: TrainingProps) {
             setEditingTopic(null)
           }}
           onSave={handleSaveTopic}
+          isSaving={isSaving}
         />
         {confirmDialog}
       </TrainingDetail>
@@ -251,6 +300,12 @@ export function Training({ user, onBack }: TrainingProps) {
       </header>
 
       <main className="mx-auto max-w-6xl space-y-6 p-4 lg:p-8">
+        {errorMessage ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
+
         <section className="grid gap-3 rounded-lg border border-border bg-card/50 p-4 md:grid-cols-[1fr_220px]">
           <div className="relative">
             <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -282,7 +337,13 @@ export function Training({ user, onBack }: TrainingProps) {
           </Select>
         </section>
 
-        {visibleTopics.length ? (
+        {isLoading ? (
+          <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+            Cargando capacitaciones...
+          </div>
+        ) : null}
+
+        {!isLoading && visibleTopics.length ? (
           <div className="grid gap-4">
             {visibleTopics.map((topic, index) => {
               const TypeIcon = contentTypeIcons[topic.contentType]
@@ -299,7 +360,7 @@ export function Training({ user, onBack }: TrainingProps) {
                     <div className="min-w-0 flex-1">
                       <div className="mb-3 flex flex-wrap items-center gap-2">
                         <Badge variant="secondary">
-                          Rol
+                          {getRoleLabel(topic.category)}
                         </Badge>
                         <Badge variant="outline">
                           Orden {topic.order}
@@ -386,7 +447,9 @@ export function Training({ user, onBack }: TrainingProps) {
               )
             })}
           </div>
-        ) : (
+        ) : null}
+
+        {!isLoading && !visibleTopics.length ? (
           <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
             <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="font-medium text-foreground">
@@ -396,12 +459,6 @@ export function Training({ user, onBack }: TrainingProps) {
               Ajusta la busqueda o crea contenido para este rol.
             </p>
           </div>
-        )}
-
-        {canManage ? (
-          <p className="text-xs text-muted-foreground">
-            Los cambios se guardan en memoria hasta conectar el backend.
-          </p>
         ) : null}
       </main>
 
@@ -413,6 +470,7 @@ export function Training({ user, onBack }: TrainingProps) {
           setEditingTopic(null)
         }}
         onSave={handleSaveTopic}
+        isSaving={isSaving}
       />
       {confirmDialog}
     </div>
@@ -547,7 +605,7 @@ function TrainingDetail({
       <main className="mx-auto grid max-w-6xl gap-6 p-4 lg:grid-cols-[1fr_360px] lg:p-8">
         <section className="rounded-lg border border-border bg-card p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
-            <Badge variant="secondary">Rol</Badge>
+            <Badge variant="secondary">{getRoleLabel(topic.category)}</Badge>
             <Badge variant="outline">Orden {topic.order}</Badge>
             <Badge variant="outline" className="gap-1">
               <TypeIcon className="h-3 w-3" />
@@ -589,11 +647,13 @@ function TrainingTopicModal({
   topic,
   onClose,
   onSave,
+  isSaving,
 }: {
   isOpen: boolean
   topic: TrainingTopic | null
   onClose: () => void
-  onSave: (topic: Omit<TrainingTopic, "id">) => void
+  onSave: (topic: TrainingTopicFormData) => void
+  isSaving?: boolean
 }) {
   const [title, setTitle] = useState("")
   const [category, setCategory] = useState<UserRole | "general">("general")
@@ -602,6 +662,7 @@ function TrainingTopicModal({
   const [body, setBody] = useState("")
   const [contentType, setContentType] = useState<TrainingContentType>("text")
   const [mediaUrl, setMediaUrl] = useState("")
+  const [mediaFile, setMediaFile] = useState<File | null>(null)
   const [visibleTo, setVisibleTo] = useState<UserRole[]>(["encuestador"])
   const [updatedAt, setUpdatedAt] = useState(new Date().toISOString().split("T")[0])
 
@@ -615,6 +676,7 @@ function TrainingTopicModal({
     setBody(topic?.body ?? "")
     setContentType(topic?.contentType ?? "text")
     setMediaUrl(topic?.mediaUrl ?? "")
+    setMediaFile(null)
     setVisibleTo(topic?.visibleTo ?? ["encuestador"])
     setUpdatedAt(topic?.updatedAt ?? new Date().toISOString().split("T")[0])
   }, [isOpen, topic])
@@ -623,6 +685,7 @@ function TrainingTopicModal({
     const file = event.target.files?.[0]
     if (!file) return
 
+    setMediaFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -654,6 +717,7 @@ function TrainingTopicModal({
       body: body.trim(),
       contentType,
       mediaUrl: mediaUrl.trim() || undefined,
+      mediaFile,
       visibleTo,
       updatedAt,
     })
@@ -803,7 +867,7 @@ function TrainingTopicModal({
               <Input
                 type="file"
                 accept="image/*,video/*,.pdf"
-                onChange={handleMediaUpload}
+              onChange={handleMediaUpload}
               />
             </div>
 
@@ -839,10 +903,11 @@ function TrainingTopicModal({
                 !title.trim() ||
                 !summary.trim() ||
                 !body.trim() ||
-                !visibleTo.length
+                !visibleTo.length ||
+                isSaving
               }
             >
-              Guardar tema
+              {isSaving ? "Guardando..." : "Guardar tema"}
             </Button>
           </div>
         </form>

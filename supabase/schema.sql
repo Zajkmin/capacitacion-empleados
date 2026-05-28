@@ -135,6 +135,22 @@ create table if not exists public.section_items (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.training_topics (
+  id uuid primary key default gen_random_uuid(),
+  title text not null,
+  category text not null default 'general',
+  summary text not null default '',
+  body text not null default '',
+  content_type text not null default 'text',
+  media_url text,
+  visible_to text[] not null default '{}',
+  sort_order integer not null default 0,
+  created_by uuid references auth.users(id) on delete set null,
+  updated_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   (
@@ -165,6 +181,21 @@ values
       'image/jpeg',
       'image/png',
       'image/webp'
+    ]
+  ),
+  (
+    'training-media',
+    'training-media',
+    true,
+    52428800,
+    array[
+      'application/pdf',
+      'image/jpeg',
+      'image/png',
+      'image/webp',
+      'video/mp4',
+      'video/webm',
+      'video/quicktime'
     ]
   )
 on conflict (id) do update
@@ -286,6 +317,12 @@ before update on public.section_items
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists training_topics_set_updated_at on public.training_topics;
+create trigger training_topics_set_updated_at
+before update on public.training_topics
+for each row
+execute function public.set_updated_at();
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -318,6 +355,7 @@ alter table public.project_groups enable row level security;
 alter table public.projects enable row level security;
 alter table public.project_sections enable row level security;
 alter table public.section_items enable row level security;
+alter table public.training_topics enable row level security;
 
 create or replace function public.current_user_role()
 returns text
@@ -514,13 +552,45 @@ using (
   or 'delete_section' = any(public.current_user_permissions())
 );
 
+drop policy if exists "Users can read visible training topics" on public.training_topics;
+create policy "Users can read visible training topics"
+on public.training_topics
+for select
+to authenticated
+using (
+  public.current_user_role() = 'admin'
+  or public.current_user_role() = any(visible_to)
+);
+
+drop policy if exists "Admins can insert training topics" on public.training_topics;
+create policy "Admins can insert training topics"
+on public.training_topics
+for insert
+to authenticated
+with check (public.current_user_role() = 'admin');
+
+drop policy if exists "Admins can update training topics" on public.training_topics;
+create policy "Admins can update training topics"
+on public.training_topics
+for update
+to authenticated
+using (public.current_user_role() = 'admin')
+with check (public.current_user_role() = 'admin');
+
+drop policy if exists "Admins can delete training topics" on public.training_topics;
+create policy "Admins can delete training topics"
+on public.training_topics
+for delete
+to authenticated
+using (public.current_user_role() = 'admin');
+
 drop policy if exists "Authenticated users can read app storage" on storage.objects;
 create policy "Authenticated users can read app storage"
 on storage.objects
 for select
 to authenticated
 using (
-  bucket_id in ('project-covers', 'section-images', 'documents')
+  bucket_id in ('project-covers', 'section-images', 'documents', 'training-media')
 );
 
 drop policy if exists "Admins can upload project covers" on storage.objects;
@@ -602,4 +672,38 @@ using (
     public.current_user_role() = 'admin'
     or 'delete_section' = any(public.current_user_permissions())
   )
+);
+
+drop policy if exists "Admins can upload training media" on storage.objects;
+create policy "Admins can upload training media"
+on storage.objects
+for insert
+to authenticated
+with check (
+  bucket_id = 'training-media'
+  and public.current_user_role() = 'admin'
+);
+
+drop policy if exists "Admins can update training media" on storage.objects;
+create policy "Admins can update training media"
+on storage.objects
+for update
+to authenticated
+using (
+  bucket_id = 'training-media'
+  and public.current_user_role() = 'admin'
+)
+with check (
+  bucket_id = 'training-media'
+  and public.current_user_role() = 'admin'
+);
+
+drop policy if exists "Admins can delete training media" on storage.objects;
+create policy "Admins can delete training media"
+on storage.objects
+for delete
+to authenticated
+using (
+  bucket_id = 'training-media'
+  and public.current_user_role() = 'admin'
 );

@@ -6,6 +6,7 @@ export type AppStorageBucket =
   | "project-covers"
   | "section-images"
   | "documents"
+  | "training-media"
 
 function sanitizePathPart(value: string) {
   return value
