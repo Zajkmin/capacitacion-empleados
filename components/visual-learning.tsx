@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 
 interface VisualLearningProps {
   onBack: () => void
@@ -129,6 +130,7 @@ export function VisualLearning({
   const [showTip, setShowTip] = useState(false)
   const [showModal, setShowModal] = useState(false)
   const [editingComparison, setEditingComparison] = useState<Comparison | null>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const currentComparison = comparisons[currentIndex]
 
@@ -151,9 +153,14 @@ export function VisualLearning({
     setShowTip(false)
   }
 
-  const handleDeleteCurrent = () => {
+  const handleDeleteCurrent = async () => {
     if (!currentComparison) return
-    if (!confirm("¿Está seguro de que desea eliminar esta comparativa?")) return
+    const confirmed = await confirmAction({
+      title: "Eliminar comparativa",
+      description: `Esta accion eliminara "${currentComparison.title}".`,
+      confirmLabel: "Eliminar",
+    })
+    if (!confirmed) return
 
     const nextComparisons = comparisons.filter((item) => item.id !== currentComparison.id)
     setComparisons(nextComparisons)
@@ -212,8 +219,13 @@ export function VisualLearning({
                 )}
                 {currentComparison && canEdit && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Editar "${currentComparison.title}"?`)) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar comparativa",
+                        description: `Vas a modificar "${currentComparison.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
                       setEditingComparison(currentComparison)
                       setShowModal(true)
                     }}
@@ -376,6 +388,7 @@ export function VisualLearning({
           setEditingComparison(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }

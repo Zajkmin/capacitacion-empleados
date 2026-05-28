@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { Building2, ImagePlus, Pencil, Plus, Trash2 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 import {
   Dialog,
   DialogContent,
@@ -258,6 +259,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
   const [projectCoverImage, setProjectCoverImage] = useState<string | undefined>()
   const [projectCoverFile, setProjectCoverFile] = useState<File | null>(null)
   const canManageDashboard = user.role === "admin"
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   useEffect(() => {
     let isMounted = true
@@ -302,9 +304,14 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     setIsProjectDialogOpen(true)
   }
 
-  const openProjectEditForm = (groupId: string, project: ProjectType) => {
+  const openProjectEditForm = async (groupId: string, project: ProjectType) => {
     if (!canManageDashboard) return
-    if (!confirm(`Editar el proyecto "${project.name}"?`)) return
+    const confirmed = await confirmAction({
+      title: "Editar proyecto",
+      description: `Vas a modificar "${project.name}".`,
+      confirmLabel: "Editar",
+    })
+    if (!confirmed) return
 
     setEditingProjectId(project.id)
     setProjectName(project.name)
@@ -322,9 +329,14 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     setIsGroupDialogOpen(true)
   }
 
-  const openGroupEditForm = (group: ProjectGroupType) => {
+  const openGroupEditForm = async (group: ProjectGroupType) => {
     if (!canManageDashboard) return
-    if (!confirm(`Editar el grupo "${group.name}"?`)) return
+    const confirmed = await confirmAction({
+      title: "Editar grupo",
+      description: `Vas a modificar "${group.name}".`,
+      confirmLabel: "Editar",
+    })
+    if (!confirmed) return
 
     setEditingGroupId(group.id)
     setGroupName(group.name)
@@ -428,13 +440,13 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
     if (!canManageDashboard) return
     const group = groups.find((item) => item.id === groupId)
     const groupName = group?.name ?? "este grupo"
-    if (
-      !confirm(
-        `Eliminar "${groupName}" tambien eliminara sus proyectos, secciones y contenidos. Continuar?`,
-      )
-    ) {
-      return
-    }
+    const confirmed = await confirmAction({
+      title: "Eliminar grupo",
+      description: `Esta accion eliminara "${groupName}" junto con sus proyectos, secciones y contenidos.`,
+      confirmLabel: "Eliminar grupo",
+      requiredText: groupName,
+    })
+    if (!confirmed) return
 
     try {
       await deleteProjectGroup(groupId)
@@ -455,13 +467,13 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
       .flatMap((group) => group.projects)
       .find((item) => item.id === projectId)
     const projectName = project?.name ?? "este proyecto"
-    if (
-      !confirm(
-        `Eliminar "${projectName}" tambien eliminara sus secciones y contenidos. Continuar?`,
-      )
-    ) {
-      return
-    }
+    const confirmed = await confirmAction({
+      title: "Eliminar proyecto",
+      description: `Esta accion eliminara "${projectName}" junto con sus secciones y contenidos.`,
+      confirmLabel: "Eliminar proyecto",
+      requiredText: projectName,
+    })
+    if (!confirmed) return
 
     try {
       await deleteProject(projectId)
@@ -696,6 +708,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
           </form>
         </DialogContent>
       </Dialog>
+      {confirmDialog}
     </div>
   )
 }

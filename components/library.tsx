@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { Input } from "@/components/ui/input"
 import {
   deleteSectionItem,
@@ -163,6 +164,7 @@ export function Library({ sectionId, onBack, canAdd, canEdit, canDelete }: Libra
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [showModal, setShowModal] = useState(false)
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   useEffect(() => {
     let isMounted = true
@@ -227,8 +229,13 @@ export function Library({ sectionId, onBack, canAdd, canEdit, canDelete }: Libra
     setEditingResource(null)
   }
 
-  const handleDeleteResource = (resource: Resource) => {
-    if (!confirm("¿Está seguro de que desea eliminar este recurso?")) return
+  const handleDeleteResource = async (resource: Resource) => {
+    const confirmed = await confirmAction({
+      title: "Eliminar recurso",
+      description: `Esta accion eliminara "${resource.title}".`,
+      confirmLabel: "Eliminar",
+    })
+    if (!confirmed) return
     setResources((items) => items.filter((item) => item.id !== resource.id))
   }
 
@@ -291,7 +298,12 @@ export function Library({ sectionId, onBack, canAdd, canEdit, canDelete }: Libra
   }
 
   const handleDeleteResourceFromSupabase = async (resource: Resource) => {
-    if (!confirm("¿Está seguro de que desea eliminar este recurso?")) return
+    const confirmed = await confirmAction({
+      title: "Eliminar recurso",
+      description: `Esta accion eliminara "${resource.title}".`,
+      confirmLabel: "Eliminar",
+    })
+    if (!confirmed) return
 
     try {
       await deleteSectionItem(resource.id)
@@ -309,8 +321,13 @@ export function Library({ sectionId, onBack, canAdd, canEdit, canDelete }: Libra
     setShowModal(true)
   }
 
-  const openEditResourceModal = (resource: Resource) => {
-    if (!confirm(`Editar el recurso "${resource.title}"?`)) return
+  const openEditResourceModal = async (resource: Resource) => {
+    const confirmed = await confirmAction({
+      title: "Editar recurso",
+      description: `Vas a modificar "${resource.title}".`,
+      confirmLabel: "Editar",
+    })
+    if (!confirmed) return
     setEditingResource(resource)
     setShowModal(true)
   }
@@ -468,6 +485,7 @@ export function Library({ sectionId, onBack, canAdd, canEdit, canDelete }: Libra
           setEditingResource(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }

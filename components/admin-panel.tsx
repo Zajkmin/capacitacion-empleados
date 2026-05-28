@@ -16,6 +16,7 @@ import {
 
 import { Button } from "@/components/ui/button"
 import { Card } from "@/components/ui/card"
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { Input } from "@/components/ui/input"
 import {
   allPermissions,
@@ -102,6 +103,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   const [roleName, setRoleName] = useState("")
   const [roleDescription, setRoleDescription] = useState("")
   const [roleSelectedPermissions, setRoleSelectedPermissions] = useState<Permission[]>([])
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const roleMap = useMemo(
     () => new Map(roles.map((role) => [role.id, role])),
@@ -170,8 +172,13 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     setShowUserModal(true)
   }
 
-  const openEditUser = (user: User) => {
-    if (!confirm(`Editar permisos de "${user.name}"?`)) return
+  const openEditUser = async (user: User) => {
+    const confirmed = await confirmAction({
+      title: "Editar usuario",
+      description: `Vas a modificar permisos de "${user.name}".`,
+      confirmLabel: "Editar",
+    })
+    if (!confirmed) return
     setUserError("")
     setUserModalMode("edit")
     setEditingUser(user)
@@ -236,8 +243,14 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     }
   }
 
-  const handleDeleteUser = (id: string) => {
-    if (!confirm("¿Está seguro de que desea eliminar este usuario?")) return
+  const handleDeleteUser = async (id: string) => {
+    const user = users.find((item) => item.id === id)
+    const confirmed = await confirmAction({
+      title: "Eliminar usuario",
+      description: `Esta accion quitara "${user?.name ?? "este usuario"}" de la lista.`,
+      confirmLabel: "Eliminar",
+    })
+    if (!confirmed) return
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== id))
   }
 
@@ -251,8 +264,13 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     setShowRoleModal(true)
   }
 
-  const openEditRole = (role: RoleConfig) => {
-    if (!confirm(`Editar el rol "${role.label}"? Los cambios afectaran a todos los usuarios con este rol.`)) return
+  const openEditRole = async (role: RoleConfig) => {
+    const confirmed = await confirmAction({
+      title: "Editar rol",
+      description: `Los cambios en "${role.label}" afectaran a todos los usuarios con este rol.`,
+      confirmLabel: "Editar",
+    })
+    if (!confirmed) return
     setRoleError("")
     setRoleModalMode("edit")
     setEditingRole(role)
@@ -314,7 +332,12 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
 
   const handleDeleteRole = async (role: RoleConfig) => {
     if (role.locked) return
-    if (!confirm(`Eliminar el rol "${role.label}"? Los usuarios con este rol pasaran a encuestador.`)) return
+    const confirmed = await confirmAction({
+      title: "Eliminar rol",
+      description: `Los usuarios con "${role.label}" pasaran a encuestador.`,
+      confirmLabel: "Eliminar rol",
+    })
+    if (!confirmed) return
 
     const fallbackRole = "encuestador"
     setRoleError("")
@@ -821,6 +844,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
           </motion.div>
         </div>
       )}
+      {confirmDialog}
     </div>
   )
 }

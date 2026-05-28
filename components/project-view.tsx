@@ -18,6 +18,7 @@ import {
 } from "lucide-react"
 import { VisualLearning } from "@/components/visual-learning"
 import { Library } from "@/components/library"
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { SectionEditModal } from "@/components/section-edit-modal"
 import { ItemEditModal } from "@/components/item-edit-modal"
 import type { ViewType } from "@/components/dashboard-layout"
@@ -153,6 +154,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
   const [sectionError, setSectionError] = useState("")
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingSection, setEditingSection] = useState<ProjectSectionView | null>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const displayName = projectName || projectData.name
   const displayColor = projectColor || projectData.color
@@ -197,41 +199,58 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
     if (currentSection.type === "visual-learning") {
       return (
-        <VisualLearning
-          onBack={() => setActiveSection(null)}
-          canAdd={canAdd}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        <>
+          <VisualLearning
+            onBack={() => setActiveSection(null)}
+            canAdd={canAdd}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+          {confirmDialog}
+        </>
       )
     }
     if (currentSection.type === "library") {
       return (
-        <Library
-          onBack={() => setActiveSection(null)}
-          sectionId={currentSection.id}
-          canAdd={canAdd}
-          canEdit={canEdit}
-          canDelete={canDelete}
-        />
+        <>
+          <Library
+            onBack={() => setActiveSection(null)}
+            sectionId={currentSection.id}
+            canAdd={canAdd}
+            canEdit={canEdit}
+            canDelete={canDelete}
+          />
+          {confirmDialog}
+        </>
       )
     }
 
     return (
-      <SectionDetail
-        sectionId={activeSection}
-        section={currentSection}
-        onBack={() => setActiveSection(null)}
-        projectName={displayName}
-        onEdit={() => {
+      <>
+        <SectionDetail
+          sectionId={activeSection}
+          section={currentSection}
+          onBack={() => setActiveSection(null)}
+          projectName={displayName}
+          onEdit={async () => {
           const section = sections.find((s) => s.id === activeSection)
           if (!section) return
-          if (!confirm(`Editar la seccion "${section.title}"?`)) return
+          const confirmed = await confirmAction({
+            title: "Editar seccion",
+            description: `Vas a modificar "${section.title}".`,
+            confirmLabel: "Editar",
+          })
+          if (!confirmed) return
           setEditingSection(section)
           setShowEditModal(true)
         }}
-        onDelete={() => {
-          if (confirm(`Eliminar "${currentSection.title}" tambien eliminara su contenido. Continuar?`)) {
+          onDelete={async () => {
+          const confirmed = await confirmAction({
+            title: "Eliminar seccion",
+            description: `Esta accion eliminara "${currentSection.title}" y todo su contenido.`,
+            confirmLabel: "Eliminar seccion",
+          })
+          if (confirmed) {
             deleteProjectSection(activeSection)
               .then(() => {
                 setSections(sections.filter((s) => s.id !== activeSection))
@@ -247,11 +266,13 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
               })
           }
         }}
-        canEdit={canEdit}
-        canDelete={canDelete}
-        canAdd={canAdd}
-        userRole={userRole}
-      />
+          canEdit={canEdit}
+          canDelete={canDelete}
+          canAdd={canAdd}
+          userRole={userRole}
+        />
+        {confirmDialog}
+      </>
     )
   }
 
@@ -405,9 +426,14 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
                   <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-30 relative">
                     {canEdit && (
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation()
-                          if (!confirm(`Editar la seccion "${section.title}"?`)) return
+                          const confirmed = await confirmAction({
+                            title: "Editar seccion",
+                            description: `Vas a modificar "${section.title}".`,
+                            confirmLabel: "Editar",
+                          })
+                          if (!confirmed) return
                           setEditingSection(section)
                           setShowEditModal(true)
                         }}
@@ -419,13 +445,14 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
                     )}
                     {canDelete && (
                       <button
-                        onClick={(e) => {
+                        onClick={async (e) => {
                           e.stopPropagation()
-                          if (
-                            confirm(
-                              `Eliminar "${section.title}" tambien eliminara su contenido. Continuar?`
-                            )
-                          ) {
+                          const confirmed = await confirmAction({
+                            title: "Eliminar seccion",
+                            description: `Esta accion eliminara "${section.title}" y todo su contenido.`,
+                            confirmLabel: "Eliminar seccion",
+                          })
+                          if (confirmed) {
                             deleteProjectSection(section.id)
                               .then(() => {
                                 setSections(
@@ -798,6 +825,7 @@ function SectionItemsContent({
     useSectionItems(sectionId)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<SectionItemRecord | null>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSave = async (itemData: Record<string, any>) => {
     try {
@@ -878,8 +906,13 @@ function SectionItemsContent({
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                 {canEdit && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Editar "${item.title}"?`)) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar contenido",
+                        description: `Vas a modificar "${item.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
                       setEditingItem(item)
                       setShowModal(true)
                     }}
@@ -891,8 +924,13 @@ function SectionItemsContent({
                 )}
                 {canDelete && (
                   <button
-                    onClick={() => {
-                      if (!confirm("¿Está seguro de que desea eliminar este contenido?")) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Eliminar contenido",
+                        description: `Esta accion eliminara "${item.title}".`,
+                        confirmLabel: "Eliminar",
+                      })
+                      if (!confirmed) return
                       deleteItem(item.id).catch((error) => {
                         setErrorMessage(
                           error instanceof Error
@@ -924,6 +962,7 @@ function SectionItemsContent({
           setEditingItem(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }
@@ -943,6 +982,7 @@ function PhotoItemsContent({
     useSectionItems(sectionId)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<SectionItemRecord | null>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSave = async (itemData: Record<string, any>) => {
     try {
@@ -1018,8 +1058,13 @@ function PhotoItemsContent({
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     {canEdit && (
                       <button
-                        onClick={() => {
-                          if (!confirm(`Editar "${item.title}"?`)) return
+                        onClick={async () => {
+                          const confirmed = await confirmAction({
+                            title: "Editar foto",
+                            description: `Vas a modificar "${item.title}".`,
+                            confirmLabel: "Editar",
+                          })
+                          if (!confirmed) return
                           setEditingItem(item)
                           setShowModal(true)
                         }}
@@ -1031,8 +1076,13 @@ function PhotoItemsContent({
                     )}
                     {canDelete && (
                       <button
-                        onClick={() => {
-                          if (!confirm("¿Está seguro de que desea eliminar esta foto?")) return
+                        onClick={async () => {
+                          const confirmed = await confirmAction({
+                            title: "Eliminar foto",
+                            description: `Esta accion eliminara "${item.title}".`,
+                            confirmLabel: "Eliminar",
+                          })
+                          if (!confirmed) return
                           deleteItem(item.id).catch((error) => {
                             setErrorMessage(
                               error instanceof Error
@@ -1070,6 +1120,7 @@ function PhotoItemsContent({
           setEditingItem(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }
@@ -1103,6 +1154,7 @@ function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdi
   ])
   const [showModal, setShowModal] = useState(false)
   const [editingRule, setEditingRule] = useState<any>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSaveRule = (ruleData: any) => {
     if (editingRule) {
@@ -1159,8 +1211,13 @@ function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdi
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                 {canEdit && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Editar "${rule.title}"?`)) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar regla",
+                        description: `Vas a modificar "${rule.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
                       setEditingRule(rule)
                       setShowModal(true)
                     }}
@@ -1172,8 +1229,13 @@ function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdi
                 )}
                 {canDelete && (
                   <button
-                    onClick={() => {
-                      if (confirm("¿Está seguro de que desea eliminar esta regla?")) {
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Eliminar regla",
+                        description: `Esta accion eliminara "${rule.title}".`,
+                        confirmLabel: "Eliminar",
+                      })
+                      if (confirmed) {
                         setRules(rules.filter((r) => r.id !== rule.id))
                       }
                     }}
@@ -1199,6 +1261,7 @@ function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdi
           setEditingRule(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }
@@ -1221,6 +1284,7 @@ function ExceptionsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; c
   ])
   const [showModal, setShowModal] = useState(false)
   const [editingException, setEditingException] = useState<any>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSaveException = (exceptionData: any) => {
     if (editingException) {
@@ -1282,8 +1346,13 @@ function ExceptionsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; c
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                 {canEdit && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Editar "${exception.title}"?`)) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar excepcion",
+                        description: `Vas a modificar "${exception.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
                       setEditingException(exception)
                       setShowModal(true)
                     }}
@@ -1295,8 +1364,13 @@ function ExceptionsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; c
                 )}
                 {canDelete && (
                   <button
-                    onClick={() => {
-                      if (confirm("¿Está seguro de que desea eliminar esta excepción?")) {
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Eliminar excepcion",
+                        description: `Esta accion eliminara "${exception.title}".`,
+                        confirmLabel: "Eliminar",
+                      })
+                      if (confirmed) {
                         setExceptions(exceptions.filter((e) => e.id !== exception.id))
                       }
                     }}
@@ -1322,6 +1396,7 @@ function ExceptionsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; c
           setEditingException(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }
@@ -1337,6 +1412,7 @@ function PhotosContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
   ])
   const [showModal, setShowModal] = useState(false)
   const [editingPhoto, setEditingPhoto] = useState<any>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSavePhoto = (photoData: any) => {
     if (editingPhoto) {
@@ -1388,8 +1464,13 @@ function PhotosContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
                   <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
                     {canEdit && (
                       <button
-                        onClick={() => {
-                          if (!confirm(`Editar "${photo.title}"?`)) return
+                        onClick={async () => {
+                          const confirmed = await confirmAction({
+                            title: "Editar foto",
+                            description: `Vas a modificar "${photo.title}".`,
+                            confirmLabel: "Editar",
+                          })
+                          if (!confirmed) return
                           setEditingPhoto(photo)
                           setShowModal(true)
                         }}
@@ -1401,8 +1482,13 @@ function PhotosContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
                     )}
                     {canDelete && (
                       <button
-                        onClick={() => {
-                          if (confirm("¿Está seguro de que desea eliminar esta foto?")) {
+                        onClick={async () => {
+                          const confirmed = await confirmAction({
+                            title: "Eliminar foto",
+                            description: `Esta accion eliminara "${photo.title}".`,
+                            confirmLabel: "Eliminar",
+                          })
+                          if (confirmed) {
                             setPhotos(photos.filter((p) => p.id !== photo.id))
                           }
                         }}
@@ -1441,6 +1527,7 @@ function PhotosContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
           setEditingPhoto(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }
@@ -1460,6 +1547,7 @@ function ErrorsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
   ])
   const [showModal, setShowModal] = useState(false)
   const [editingError, setEditingError] = useState<any>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSaveError = (errorData: any) => {
     if (editingError) {
@@ -1516,8 +1604,13 @@ function ErrorsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                 {canEdit && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Editar "${error.title}"?`)) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar error",
+                        description: `Vas a modificar "${error.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
                       setEditingError(error)
                       setShowModal(true)
                     }}
@@ -1529,8 +1622,13 @@ function ErrorsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
                 )}
                 {canDelete && (
                   <button
-                    onClick={() => {
-                      if (confirm("¿Está seguro de que desea eliminar este error?")) {
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Eliminar error",
+                        description: `Esta accion eliminara "${error.title}".`,
+                        confirmLabel: "Eliminar",
+                      })
+                      if (confirmed) {
                         setErrors(errors.filter((e) => e.id !== error.id))
                       }
                     }}
@@ -1556,6 +1654,7 @@ function ErrorsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
           setEditingError(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }
@@ -1571,6 +1670,7 @@ function UpdatesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canE
   ])
   const [showModal, setShowModal] = useState(false)
   const [editingUpdate, setEditingUpdate] = useState<any>(null)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const handleSaveUpdate = (updateData: any) => {
     if (editingUpdate) {
@@ -1630,8 +1730,13 @@ function UpdatesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canE
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                 {canEdit && (
                   <button
-                    onClick={() => {
-                      if (!confirm(`Editar "${update.title}"?`)) return
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar actualizacion",
+                        description: `Vas a modificar "${update.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
                       setEditingUpdate(update)
                       setShowModal(true)
                     }}
@@ -1643,8 +1748,13 @@ function UpdatesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canE
                 )}
                 {canDelete && (
                   <button
-                    onClick={() => {
-                      if (confirm("¿Está seguro de que desea eliminar esta actualización?")) {
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Eliminar actualizacion",
+                        description: `Esta accion eliminara "${update.title}".`,
+                        confirmLabel: "Eliminar",
+                      })
+                      if (confirmed) {
                         setUpdates(updates.filter((u) => u.id !== update.id))
                       }
                     }}
@@ -1670,6 +1780,7 @@ function UpdatesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canE
           setEditingUpdate(null)
         }}
       />
+      {confirmDialog}
     </div>
   )
 }

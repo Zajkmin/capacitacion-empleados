@@ -25,6 +25,7 @@ import {
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { Input } from "@/components/ui/input"
 import {
   Select,
@@ -114,6 +115,7 @@ export function Training({ user, onBack }: TrainingProps) {
   const [editingTopic, setEditingTopic] = useState<TrainingTopic | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<TrainingTopic | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const { confirmAction, confirmDialog } = useConfirmAction()
 
   const canAdd = userHasPermission(user, "add_section")
   const canEdit = userHasPermission(user, "edit_section")
@@ -167,10 +169,15 @@ export function Training({ user, onBack }: TrainingProps) {
     setEditingTopic(null)
   }
 
-  const handleDeleteTopic = (topicId: string) => {
+  const handleDeleteTopic = async (topicId: string) => {
     if (!canDelete) return
     const topic = topics.find((item) => item.id === topicId)
-    if (!confirm(`Eliminar "${topic?.title ?? "este tema"}"? Esta accion no se puede deshacer.`)) return
+    const confirmed = await confirmAction({
+      title: "Eliminar tema",
+      description: `Esta accion eliminara "${topic?.title ?? "este tema"}".`,
+      confirmLabel: "Eliminar",
+    })
+    if (!confirmed) return
 
     setTopics((currentTopics) =>
       currentTopics.filter((topic) => topic.id !== topicId),
@@ -187,8 +194,13 @@ export function Training({ user, onBack }: TrainingProps) {
         canEdit={canEdit}
         canDelete={canDelete}
         onBack={() => setSelectedTopic(null)}
-        onEdit={() => {
-          if (!confirm(`Editar "${selectedTopic.title}"?`)) return
+        onEdit={async () => {
+          const confirmed = await confirmAction({
+            title: "Editar tema",
+            description: `Vas a modificar "${selectedTopic.title}".`,
+            confirmLabel: "Editar",
+          })
+          if (!confirmed) return
           setEditingTopic(selectedTopic)
           setIsModalOpen(true)
         }}
@@ -203,6 +215,7 @@ export function Training({ user, onBack }: TrainingProps) {
           }}
           onSave={handleSaveTopic}
         />
+        {confirmDialog}
       </TrainingDetail>
     )
   }
@@ -310,9 +323,14 @@ export function Training({ user, onBack }: TrainingProps) {
                           type="button"
                           variant="outline"
                           size="icon-sm"
-                          onClick={(event) => {
+                          onClick={async (event) => {
                             event.stopPropagation()
-                            if (!confirm(`Editar "${topic.title}"?`)) return
+                            const confirmed = await confirmAction({
+                              title: "Editar tema",
+                              description: `Vas a modificar "${topic.title}".`,
+                              confirmLabel: "Editar",
+                            })
+                            if (!confirmed) return
                             setEditingTopic(topic)
                             setIsModalOpen(true)
                           }}
@@ -396,6 +414,7 @@ export function Training({ user, onBack }: TrainingProps) {
         }}
         onSave={handleSaveTopic}
       />
+      {confirmDialog}
     </div>
   )
 }
