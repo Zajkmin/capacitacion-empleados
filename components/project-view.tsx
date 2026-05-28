@@ -209,6 +209,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
       return (
         <Library
           onBack={() => setActiveSection(null)}
+          sectionId={currentSection.id}
           canAdd={canAdd}
           canEdit={canEdit}
           canDelete={canDelete}
@@ -224,11 +225,13 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
         projectName={displayName}
         onEdit={() => {
           const section = sections.find((s) => s.id === activeSection)
+          if (!section) return
+          if (!confirm(`Editar la seccion "${section.title}"?`)) return
           setEditingSection(section)
           setShowEditModal(true)
         }}
         onDelete={() => {
-          if (confirm("¿Está seguro de que desea eliminar esta sección?")) {
+          if (confirm(`Eliminar "${currentSection.title}" tambien eliminara su contenido. Continuar?`)) {
             deleteProjectSection(activeSection)
               .then(() => {
                 setSections(sections.filter((s) => s.id !== activeSection))
@@ -404,6 +407,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
                       <button
                         onClick={(e) => {
                           e.stopPropagation()
+                          if (!confirm(`Editar la seccion "${section.title}"?`)) return
                           setEditingSection(section)
                           setShowEditModal(true)
                         }}
@@ -419,7 +423,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
                           e.stopPropagation()
                           if (
                             confirm(
-                              "¿Está seguro de que desea eliminar esta sección?"
+                              `Eliminar "${section.title}" tambien eliminara su contenido. Continuar?`
                             )
                           ) {
                             deleteProjectSection(section.id)
@@ -875,6 +879,7 @@ function SectionItemsContent({
                 {canEdit && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Editar "${item.title}"?`)) return
                       setEditingItem(item)
                       setShowModal(true)
                     }}
@@ -1014,6 +1019,7 @@ function PhotoItemsContent({
                     {canEdit && (
                       <button
                         onClick={() => {
+                          if (!confirm(`Editar "${item.title}"?`)) return
                           setEditingItem(item)
                           setShowModal(true)
                         }}
@@ -1154,6 +1160,7 @@ function RulesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEdi
                 {canEdit && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Editar "${rule.title}"?`)) return
                       setEditingRule(rule)
                       setShowModal(true)
                     }}
@@ -1276,6 +1283,7 @@ function ExceptionsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; c
                 {canEdit && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Editar "${exception.title}"?`)) return
                       setEditingException(exception)
                       setShowModal(true)
                     }}
@@ -1381,6 +1389,7 @@ function PhotosContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
                     {canEdit && (
                       <button
                         onClick={() => {
+                          if (!confirm(`Editar "${photo.title}"?`)) return
                           setEditingPhoto(photo)
                           setShowModal(true)
                         }}
@@ -1508,6 +1517,7 @@ function ErrorsContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canEd
                 {canEdit && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Editar "${error.title}"?`)) return
                       setEditingError(error)
                       setShowModal(true)
                     }}
@@ -1621,6 +1631,7 @@ function UpdatesContent({ canAdd, canEdit, canDelete }: { canAdd?: boolean; canE
                 {canEdit && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Editar "${update.title}"?`)) return
                       setEditingUpdate(update)
                       setShowModal(true)
                     }}

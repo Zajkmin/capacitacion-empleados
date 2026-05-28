@@ -21,9 +21,17 @@ import {
 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
+import {
+  deleteSectionItem,
+  listSectionItems,
+  saveSectionItem,
+  type SectionItemRecord,
+} from "@/lib/supabase/projects"
+import { uploadPublicFile } from "@/lib/supabase/storage"
 
 interface LibraryProps {
   onBack: () => void
+  sectionId: string
   canAdd?: boolean
   canEdit?: boolean
   canDelete?: boolean
@@ -42,6 +50,11 @@ interface Resource {
   starred: boolean
   previewUrl?: string
   sourceUrl?: string
+}
+
+type ResourceFormData = Omit<Resource, "id"> & {
+  sourceFile?: File | null
+  previewFile?: File | null
 }
 
 const categoryLabels: Record<ResourceCategory | "all", string> = {
@@ -121,13 +134,59 @@ const typeColors = {
   video: "text-warning bg-warning/20",
 }
 
-export function Library({ onBack, canAdd, canEdit, canDelete }: LibraryProps) {
-  const [resources, setResources] = useState(initialResources)
+function metadataString(item: SectionItemRecord, key: string, fallback = "") {
+  const value = item.metadata[key]
+  return typeof value === "string" ? value : fallback
+}
+
+function mapItemToResource(item: SectionItemRecord): Resource {
+  return {
+    id: item.id,
+    title: item.title,
+    type: metadataString(item, "resourceType", "document") as ResourceType,
+    category: metadataString(item, "category", "documents") as ResourceCategory,
+    size: metadataString(item, "size", "Sin tamano"),
+    date: metadataString(item, "date", ""),
+    starred: item.metadata.starred === true,
+    previewUrl: item.imageUrl,
+    sourceUrl: item.sourceUrl,
+  }
+}
+
+export function Library({ sectionId, onBack, canAdd, canEdit, canDelete }: LibraryProps) {
+  const [resources, setResources] = useState<Resource[]>([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [errorMessage, setErrorMessage] = useState("")
+  const [isSavingResource, setIsSavingResource] = useState(false)
   const [selectedCategory, setSelectedCategory] = useState<ResourceCategory | "all">("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [showModal, setShowModal] = useState(false)
   const [editingResource, setEditingResource] = useState<Resource | null>(null)
+
+  useEffect(() => {
+    let isMounted = true
+
+    listSectionItems(sectionId)
+      .then((items) => {
+        if (isMounted) setResources(items.map(mapItemToResource))
+      })
+      .catch((error) => {
+        if (!isMounted) return
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudieron cargar los recursos.",
+        )
+      })
+      .finally(() => {
+        if (isMounted) setIsLoading(false)
+      })
+
+    return () => {
+      isMounted = false
+    }
+  }, [sectionId])
 
   const categories = useMemo(
     () =>
@@ -173,12 +232,85 @@ export function Library({ onBack, canAdd, canEdit, canDelete }: LibraryProps) {
     setResources((items) => items.filter((item) => item.id !== resource.id))
   }
 
+  const handleSaveResourceToSupabase = async (resourceData: ResourceFormData) => {
+    setIsSavingResource(true)
+    setErrorMessage("")
+
+    try {
+      const uploadedSource = resourceData.sourceFile
+        ? await uploadPublicFile({
+            bucket: "documents",
+            file: resourceData.sourceFile,
+            folder: "library",
+          })
+        : null
+      const uploadedPreview = resourceData.previewFile
+        ? await uploadPublicFile({
+            bucket: "section-images",
+            file: resourceData.previewFile,
+            folder: "library",
+          })
+        : null
+      const savedItem = await saveSectionItem({
+        id: editingResource?.id,
+        sectionId,
+        type: "library",
+        title: resourceData.title,
+        description: resourceData.category,
+        sourceUrl: uploadedSource?.publicUrl ?? resourceData.sourceUrl,
+        imageUrl: uploadedPreview?.publicUrl ?? resourceData.previewUrl,
+        metadata: {
+          resourceType: resourceData.type,
+          category: resourceData.category,
+          size: resourceData.size,
+          date: resourceData.date,
+          starred: resourceData.starred,
+        },
+        sortOrder: editingResource
+          ? resources.findIndex((resource) => resource.id === editingResource.id)
+          : resources.length,
+      })
+      const savedResource = mapItemToResource(savedItem)
+
+      setResources((items) =>
+        editingResource
+          ? items.map((item) =>
+              item.id === editingResource.id ? savedResource : item,
+            )
+          : [...items, savedResource],
+      )
+      setShowModal(false)
+      setEditingResource(null)
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "No se pudo guardar el recurso.",
+      )
+    } finally {
+      setIsSavingResource(false)
+    }
+  }
+
+  const handleDeleteResourceFromSupabase = async (resource: Resource) => {
+    if (!confirm("¿Está seguro de que desea eliminar este recurso?")) return
+
+    try {
+      await deleteSectionItem(resource.id)
+      setResources((items) => items.filter((item) => item.id !== resource.id))
+      setErrorMessage("")
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error ? error.message : "No se pudo eliminar el recurso.",
+      )
+    }
+  }
+
   const openNewResourceModal = () => {
     setEditingResource(null)
     setShowModal(true)
   }
 
   const openEditResourceModal = (resource: Resource) => {
+    if (!confirm(`Editar el recurso "${resource.title}"?`)) return
     setEditingResource(resource)
     setShowModal(true)
   }
@@ -273,6 +405,18 @@ export function Library({ onBack, canAdd, canEdit, canDelete }: LibraryProps) {
       </header>
 
       <main className="p-4 lg:p-8">
+        {errorMessage ? (
+          <div className="mb-4 rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        {isLoading ? (
+          <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+            Cargando recursos...
+          </div>
+        ) : null}
+
         {viewMode === "grid" ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {filteredResources.map((resource, index) => (
@@ -283,7 +427,7 @@ export function Library({ onBack, canAdd, canEdit, canDelete }: LibraryProps) {
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onEdit={openEditResourceModal}
-                onDelete={handleDeleteResource}
+                onDelete={handleDeleteResourceFromSupabase}
               />
             ))}
           </div>
@@ -297,7 +441,7 @@ export function Library({ onBack, canAdd, canEdit, canDelete }: LibraryProps) {
                 canEdit={canEdit}
                 canDelete={canDelete}
                 onEdit={openEditResourceModal}
-                onDelete={handleDeleteResource}
+                onDelete={handleDeleteResourceFromSupabase}
               />
             ))}
           </div>
@@ -317,7 +461,8 @@ export function Library({ onBack, canAdd, canEdit, canDelete }: LibraryProps) {
         isOpen={showModal}
         isNew={!editingResource}
         resource={editingResource}
-        onSave={handleSaveResource}
+        onSave={handleSaveResourceToSupabase}
+        isSaving={isSavingResource}
         onClose={() => {
           setShowModal(false)
           setEditingResource(null)
@@ -459,7 +604,17 @@ function ResourceActions({
   return (
     <div className="flex items-center gap-2">
       {resource.starred && <Star className="w-4 h-4 text-warning fill-warning" />}
-      <button className="p-2 rounded-lg bg-secondary opacity-0 group-hover:opacity-100 transition-opacity">
+      <button
+        type="button"
+        onClick={() => {
+          if (resource.sourceUrl) {
+            window.open(resource.sourceUrl, "_blank", "noopener,noreferrer")
+          }
+        }}
+        disabled={!resource.sourceUrl}
+        className="p-2 rounded-lg bg-secondary opacity-0 group-hover:opacity-100 transition-opacity disabled:cursor-not-allowed disabled:opacity-30"
+        title="Abrir recurso"
+      >
         <Download className="w-4 h-4 text-muted-foreground" />
       </button>
       {canEdit && (
@@ -489,12 +644,14 @@ function ResourceEditModal({
   isNew,
   resource,
   onSave,
+  isSaving,
   onClose,
 }: {
   isOpen: boolean
   isNew: boolean
   resource: Resource | null
-  onSave: (resource: Omit<Resource, "id">) => void
+  onSave: (resource: ResourceFormData) => void
+  isSaving?: boolean
   onClose: () => void
 }) {
   const [title, setTitle] = useState(resource?.title || "")
@@ -505,6 +662,8 @@ function ResourceEditModal({
   const [starred, setStarred] = useState(resource?.starred || false)
   const [sourceUrl, setSourceUrl] = useState(resource?.sourceUrl || "")
   const [previewUrl, setPreviewUrl] = useState(resource?.previewUrl || "")
+  const [sourceFile, setSourceFile] = useState<File | null>(null)
+  const [previewFile, setPreviewFile] = useState<File | null>(null)
 
   useEffect(() => {
     if (!isOpen) return
@@ -517,6 +676,8 @@ function ResourceEditModal({
     setStarred(resource?.starred || false)
     setSourceUrl(resource?.sourceUrl || "")
     setPreviewUrl(resource?.previewUrl || "")
+    setSourceFile(null)
+    setPreviewFile(null)
   }, [isOpen, resource])
 
   const handleFileUpload = (file?: File) => {
@@ -524,6 +685,7 @@ function ResourceEditModal({
 
     setSize(`${Math.max(file.size / 1024 / 1024, 0.1).toFixed(1)} MB`)
     setSourceUrl(file.name)
+    setSourceFile(file)
 
     if (file.type.startsWith("image/")) {
       const reader = new FileReader()
@@ -539,6 +701,7 @@ function ResourceEditModal({
   const handlePreviewUpload = (file?: File) => {
     if (!file) return
 
+    setPreviewFile(file)
     const reader = new FileReader()
     reader.onload = () => {
       if (typeof reader.result === "string") {
@@ -564,6 +727,8 @@ function ResourceEditModal({
       starred,
       sourceUrl: sourceUrl.trim() || undefined,
       previewUrl: previewUrl.trim() || undefined,
+      sourceFile,
+      previewFile,
     })
   }
 
@@ -710,8 +875,12 @@ function ResourceEditModal({
           <Button onClick={onClose} variant="outline" className="flex-1">
             Cancelar
           </Button>
-          <Button onClick={handleSave} className="flex-1" disabled={!title.trim()}>
-            {isNew ? "Crear" : "Guardar"} recurso
+          <Button
+            onClick={handleSave}
+            className="flex-1"
+            disabled={!title.trim() || isSaving}
+          >
+            {isSaving ? "Guardando..." : `${isNew ? "Crear" : "Guardar"} recurso`}
           </Button>
         </div>
       </motion.div>

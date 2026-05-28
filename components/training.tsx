@@ -169,7 +169,8 @@ export function Training({ user, onBack }: TrainingProps) {
 
   const handleDeleteTopic = (topicId: string) => {
     if (!canDelete) return
-    if (!confirm("¿Eliminar este tema de capacitacion?")) return
+    const topic = topics.find((item) => item.id === topicId)
+    if (!confirm(`Eliminar "${topic?.title ?? "este tema"}"? Esta accion no se puede deshacer.`)) return
 
     setTopics((currentTopics) =>
       currentTopics.filter((topic) => topic.id !== topicId),
@@ -187,6 +188,7 @@ export function Training({ user, onBack }: TrainingProps) {
         canDelete={canDelete}
         onBack={() => setSelectedTopic(null)}
         onEdit={() => {
+          if (!confirm(`Editar "${selectedTopic.title}"?`)) return
           setEditingTopic(selectedTopic)
           setIsModalOpen(true)
         }}
@@ -310,6 +312,7 @@ export function Training({ user, onBack }: TrainingProps) {
                           size="icon-sm"
                           onClick={(event) => {
                             event.stopPropagation()
+                            if (!confirm(`Editar "${topic.title}"?`)) return
                             setEditingTopic(topic)
                             setIsModalOpen(true)
                           }}

@@ -304,6 +304,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
 
   const openProjectEditForm = (groupId: string, project: ProjectType) => {
     if (!canManageDashboard) return
+    if (!confirm(`Editar el proyecto "${project.name}"?`)) return
 
     setEditingProjectId(project.id)
     setProjectName(project.name)
@@ -323,6 +324,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
 
   const openGroupEditForm = (group: ProjectGroupType) => {
     if (!canManageDashboard) return
+    if (!confirm(`Editar el grupo "${group.name}"?`)) return
 
     setEditingGroupId(group.id)
     setGroupName(group.name)
@@ -424,6 +426,15 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
 
   const handleGroupDelete = async (groupId: string) => {
     if (!canManageDashboard) return
+    const group = groups.find((item) => item.id === groupId)
+    const groupName = group?.name ?? "este grupo"
+    if (
+      !confirm(
+        `Eliminar "${groupName}" tambien eliminara sus proyectos, secciones y contenidos. Continuar?`,
+      )
+    ) {
+      return
+    }
 
     try {
       await deleteProjectGroup(groupId)
@@ -440,6 +451,17 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
 
   const handleProjectDelete = async (groupId: string, projectId: string) => {
     if (!canManageDashboard) return
+    const project = groups
+      .flatMap((group) => group.projects)
+      .find((item) => item.id === projectId)
+    const projectName = project?.name ?? "este proyecto"
+    if (
+      !confirm(
+        `Eliminar "${projectName}" tambien eliminara sus secciones y contenidos. Continuar?`,
+      )
+    ) {
+      return
+    }
 
     try {
       await deleteProject(projectId)

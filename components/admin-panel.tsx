@@ -171,6 +171,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   }
 
   const openEditUser = (user: User) => {
+    if (!confirm(`Editar permisos de "${user.name}"?`)) return
     setUserError("")
     setUserModalMode("edit")
     setEditingUser(user)
@@ -251,6 +252,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   }
 
   const openEditRole = (role: RoleConfig) => {
+    if (!confirm(`Editar el rol "${role.label}"? Los cambios afectaran a todos los usuarios con este rol.`)) return
     setRoleError("")
     setRoleModalMode("edit")
     setEditingRole(role)
@@ -312,7 +314,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
 
   const handleDeleteRole = async (role: RoleConfig) => {
     if (role.locked) return
-    if (!confirm(`¿Eliminar el rol ${role.label}?`)) return
+    if (!confirm(`Eliminar el rol "${role.label}"? Los usuarios con este rol pasaran a encuestador.`)) return
 
     const fallbackRole = "encuestador"
     setRoleError("")

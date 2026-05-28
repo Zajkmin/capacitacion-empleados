@@ -213,6 +213,7 @@ export function VisualLearning({
                 {currentComparison && canEdit && (
                   <button
                     onClick={() => {
+                      if (!confirm(`Editar "${currentComparison.title}"?`)) return
                       setEditingComparison(currentComparison)
                       setShowModal(true)
                     }}
