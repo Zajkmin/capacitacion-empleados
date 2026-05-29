@@ -69,10 +69,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
           >
             {/* Logo */}
             <div className="flex items-center gap-3 mb-12">
-              <div className="w-12 h-12 rounded-xl bg-primary flex items-center justify-center">
-                <Zap className="w-7 h-7 text-primary-foreground" />
-              </div>
-              <span className="text-2xl font-bold text-foreground">FieldOps Pro</span>
+              <img src="/icon.svg" alt="Nexo" className="h-12 w-12 rounded-lg" />
+              <span className="text-2xl font-bold text-foreground">Nexo</span>
             </div>
             
             <h1 className="text-4xl xl:text-5xl font-bold text-foreground leading-tight mb-6">
@@ -120,10 +118,8 @@ export function LoginPage({ onLogin }: LoginPageProps) {
         >
           {/* Mobile logo */}
           <div className="flex lg:hidden items-center gap-3 mb-8 justify-center">
-            <div className="w-10 h-10 rounded-xl bg-primary flex items-center justify-center">
-              <Zap className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-xl font-bold text-foreground">FieldOps Pro</span>
+            <img src="/icon.svg" alt="Nexo" className="h-10 w-10 rounded-lg" />
+            <span className="text-xl font-bold text-foreground">Nexo</span>
           </div>
           
           <div className="glass-card rounded-2xl p-8">

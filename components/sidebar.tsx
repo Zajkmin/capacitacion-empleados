@@ -57,16 +57,12 @@ export function Sidebar({
               transition={{ delay: 0.1 }}
               className="flex items-center gap-2"
             >
-              <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center">
-                <span className="text-white font-bold text-sm">FO</span>
-              </div>
-              <span className="font-semibold text-foreground">FieldOps Pro</span>
+              <img src="/icon.svg" alt="Nexo" className="h-8 w-8 rounded-md" />
+              <span className="font-semibold text-foreground">Nexo</span>
             </motion.div>
           )}
           {collapsed && (
-            <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-primary to-cyan-400 flex items-center justify-center mx-auto">
-              <span className="text-white font-bold text-sm">FO</span>
-            </div>
+            <img src="/icon.svg" alt="Nexo" className="mx-auto h-8 w-8 rounded-md" />
           )}
         </div>
       </div>
