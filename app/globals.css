@@ -104,8 +104,15 @@
   * {
     @apply border-border outline-ring/50;
   }
+  html {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
   body {
     @apply bg-background text-foreground antialiased;
+    max-width: 100%;
+    overflow-x: hidden;
+    overflow-wrap: anywhere;
   }
   
   /* Custom scrollbar */

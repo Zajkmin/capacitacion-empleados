@@ -218,7 +218,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
   }
 
   return (
-    <div className="min-h-screen bg-background flex">
+    <div className="flex min-h-screen w-full min-w-0 overflow-x-hidden bg-background">
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
@@ -233,7 +233,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
       </div>
       
       {/* Main Content */}
-      <main className={`flex-1 min-h-screen pb-24 transition-all duration-300 lg:pb-0 ${
+      <main className={`min-w-0 flex-1 overflow-x-hidden pb-24 transition-all duration-300 lg:pb-0 ${
         sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[280px]"
       }`}>
         <AnimatePresence mode="wait">
@@ -243,7 +243,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
             transition={{ duration: 0.2 }}
-            className="h-full"
+            className="h-full min-w-0 overflow-x-hidden"
           >
             {renderView()}
           </motion.div>

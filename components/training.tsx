@@ -858,7 +858,7 @@ function TrainingDetail({
               variant="outline"
               onClick={() => previousTopic && onNavigateTopic(previousTopic)}
               disabled={!previousTopic}
-              className="h-auto min-w-0 justify-start gap-3 px-4 py-3 text-left"
+              className="h-auto min-w-0 flex-shrink justify-start gap-3 whitespace-normal px-4 py-3 text-left"
             >
               <ArrowLeft className="h-4 w-4 flex-shrink-0" />
               <span className="min-w-0 flex-1">
@@ -875,7 +875,7 @@ function TrainingDetail({
               type="button"
               onClick={() => nextTopic && onNavigateTopic(nextTopic)}
               disabled={!nextTopic}
-              className="h-auto min-w-0 justify-between gap-3 px-4 py-3 text-left"
+              className="h-auto min-w-0 flex-shrink justify-between gap-3 whitespace-normal px-4 py-3 text-left"
             >
               <span className="min-w-0 flex-1">
                 <span className="block text-xs opacity-80">
