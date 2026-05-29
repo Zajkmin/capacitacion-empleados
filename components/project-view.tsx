@@ -32,10 +32,12 @@ import {
 import {
   deleteProjectSection,
   deleteSectionItem,
+  getProject,
   listSectionItems,
   listProjectSections,
   saveSectionItem,
   saveProjectSection,
+  type ProjectDetailRecord,
   type SectionItemRecord,
   type SectionItemType,
 } from "@/lib/supabase/projects"
@@ -146,19 +148,32 @@ function withSectionIcon(
   }
 }
 
+function getProjectBadgeStyle(bgClass: string) {
+  if (bgClass.startsWith("#") || bgClass.startsWith("rgb")) {
+    return { className: "", style: { backgroundColor: bgClass } }
+  }
+
+  return { className: bgClass, style: undefined }
+}
+
 export function ProjectView({ projectId, projectName, projectColor, onBack, onNavigate, user }: ProjectViewProps) {
   const [activeSection, setActiveSection] = useState<string | null>(null)
+  const [project, setProject] = useState<ProjectDetailRecord | null>(null)
   const [sections, setSections] = useState<ProjectSectionView[]>(
     mainSections.map(withSectionIcon),
   )
+  const [isLoadingProject, setIsLoadingProject] = useState(true)
   const [isLoadingSections, setIsLoadingSections] = useState(true)
   const [sectionError, setSectionError] = useState("")
   const [showEditModal, setShowEditModal] = useState(false)
   const [editingSection, setEditingSection] = useState<ProjectSectionView | null>(null)
   const { confirmAction, confirmDialog } = useConfirmAction()
 
-  const displayName = projectName || projectData.name
-  const displayColor = projectColor || projectData.color
+  const displayName = project?.name || projectName || "Proyecto"
+  const displayBgClass = project?.bgColor || projectColor || "bg-primary"
+  const displayGroupName = project?.groupName || "Proyecto"
+  const displayCoverImage = project?.coverImage
+  const projectBadge = getProjectBadgeStyle(displayBgClass)
   const userRole = (user?.role || "encuestador") as UserRole
   const canEdit = user
     ? userHasPermission(user, "edit_section")
@@ -173,9 +188,11 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
   useEffect(() => {
     let isMounted = true
 
-    listProjectSections(projectId)
-      .then((storedSections) => {
-        if (isMounted) setSections(storedSections.map(withSectionIcon))
+    Promise.all([getProject(projectId), listProjectSections(projectId)])
+      .then(([storedProject, storedSections]) => {
+        if (!isMounted) return
+        setProject(storedProject)
+        setSections(storedSections.map(withSectionIcon))
       })
       .catch((error) => {
         if (!isMounted) return
@@ -186,7 +203,9 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
         )
       })
       .finally(() => {
-        if (isMounted) setIsLoadingSections(false)
+        if (!isMounted) return
+        setIsLoadingProject(false)
+        setIsLoadingSections(false)
       })
 
     return () => {
@@ -337,17 +356,25 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
             <div className="flex items-center gap-3 flex-1 min-w-0">
               <div
-                className="w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0"
-                style={{ backgroundColor: displayColor }}
+                className={`w-10 h-10 rounded-xl flex items-center justify-center text-white font-bold flex-shrink-0 overflow-hidden ${projectBadge.className}`}
+                style={projectBadge.style}
               >
-                {displayName.charAt(0)}
+                {displayCoverImage ? (
+                  <img
+                    src={displayCoverImage}
+                    alt=""
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  displayName.charAt(0)
+                )}
               </div>
               <div className="min-w-0">
                 <h1 className="text-lg font-bold text-foreground truncate">
                   {displayName}
                 </h1>
                 <p className="text-sm text-muted-foreground">
-                  {projectData.client}
+                  {displayGroupName}
                 </p>
               </div>
             </div>
@@ -376,16 +403,16 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
           </div>
         ) : null}
 
-        {isLoadingSections ? (
+        {isLoadingProject || isLoadingSections ? (
           <div className="mb-4 rounded-lg border border-border bg-card/50 p-4 text-sm text-muted-foreground">
-            Cargando secciones...
+            Cargando proyecto...
           </div>
         ) : null}
 
         {/* Project Description */}
         <div className="mb-8">
           <p className="text-muted-foreground leading-relaxed">
-            {projectData.description}
+            Consulta y administra el contenido operativo de {displayName}.
           </p>
         </div>
 

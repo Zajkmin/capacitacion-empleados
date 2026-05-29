@@ -12,6 +12,10 @@ export interface ProjectRecord {
   coverImage?: string
 }
 
+export interface ProjectDetailRecord extends ProjectRecord {
+  groupName?: string
+}
+
 export interface ProjectGroupRecord {
   id: string
   name: string
@@ -160,6 +164,25 @@ export async function listProjectGroupsWithProjects() {
     type: group.type,
     projects: (group.projects ?? []).map(mapProject),
   }))
+}
+
+export async function getProject(projectId: string): Promise<ProjectDetailRecord> {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("projects")
+    .select("id, name, bg_color, text_color, cover_image, project_groups(name)")
+    .eq("id", projectId)
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  const project = mapProject(data)
+  const group = (data as any).project_groups
+
+  return {
+    ...project,
+    groupName: typeof group?.name === "string" ? group.name : undefined,
+  }
 }
 
 export async function saveProjectGroup(input: {
@@ -488,7 +511,7 @@ export async function deleteSectionItem(itemId: string) {
     await recordActivityEvent({
       projectId: context.projectId,
       sectionId: context.sectionId,
-      itemId: item.id,
+      itemId: null,
       action: "deleted",
       itemType: item.type as SectionItemType,
       title: item.title,
