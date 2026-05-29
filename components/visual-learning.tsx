@@ -100,6 +100,11 @@ export function VisualLearning({
   const [currentIndex, setCurrentIndex] = useState(0)
   const [showTip, setShowTip] = useState(false)
   const [showModal, setShowModal] = useState(false)
+  const [previewImage, setPreviewImage] = useState<{
+    url: string
+    label: string
+    variant: "correct" | "incorrect"
+  } | null>(null)
   const [editingComparison, setEditingComparison] = useState<Comparison | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
@@ -370,12 +375,26 @@ export function VisualLearning({
                 label={currentComparison.correct.label}
                 points={currentComparison.correct.points}
                 imageUrl={currentComparison.correct.imageUrl}
+                onViewImage={(imageUrl) =>
+                  setPreviewImage({
+                    url: imageUrl,
+                    label: currentComparison.correct.label,
+                    variant: "correct",
+                  })
+                }
               />
               <ComparisonPanel
                 variant="incorrect"
                 label={currentComparison.incorrect.label}
                 points={currentComparison.incorrect.points}
                 imageUrl={currentComparison.incorrect.imageUrl}
+                onViewImage={(imageUrl) =>
+                  setPreviewImage({
+                    url: imageUrl,
+                    label: currentComparison.incorrect.label,
+                    variant: "incorrect",
+                  })
+                }
               />
             </div>
 
@@ -467,6 +486,10 @@ export function VisualLearning({
           setEditingComparison(null)
         }}
       />
+      <ImagePreviewModal
+        image={previewImage}
+        onClose={() => setPreviewImage(null)}
+      />
       {confirmDialog}
     </div>
   )
@@ -477,11 +500,13 @@ function ComparisonPanel({
   label,
   points,
   imageUrl,
+  onViewImage,
 }: {
   variant: "correct" | "incorrect"
   label: string
   points: string[]
   imageUrl?: string
+  onViewImage: (imageUrl: string) => void
 }) {
   const isCorrect = variant === "correct"
   const Icon = isCorrect ? CheckCircle2 : XCircle
@@ -506,18 +531,32 @@ function ComparisonPanel({
         <h3 className={`text-xl font-bold ${toneClass}`}>{label}</h3>
       </div>
 
-      <div className={`aspect-video rounded-xl ${imageClass} border flex items-center justify-center mb-4 relative group cursor-pointer overflow-hidden`}>
+      <div className={`aspect-video rounded-xl ${imageClass} border flex items-center justify-center mb-4 relative group overflow-hidden`}>
         {imageUrl ? (
-          <img src={imageUrl} alt="" className="h-full w-full object-cover" />
+          <button
+            type="button"
+            onClick={() => onViewImage(imageUrl)}
+            className="h-full w-full cursor-zoom-in"
+            aria-label={`Ver imagen completa: ${label}`}
+          >
+            <img src={imageUrl} alt={label} className="h-full w-full object-cover" />
+          </button>
         ) : (
           <div className="text-center">
             <Eye className={`w-12 h-12 ${toneClass} opacity-50 mx-auto mb-2`} />
             <p className={`text-sm ${toneClass} opacity-70`}>Imagen de referencia</p>
           </div>
         )}
-        <button className={`absolute top-3 right-3 p-2 rounded-lg ${bgClass} opacity-0 group-hover:opacity-100 transition-opacity`}>
-          <ZoomIn className={`w-4 h-4 ${toneClass}`} />
-        </button>
+        {imageUrl ? (
+          <button
+            type="button"
+            onClick={() => onViewImage(imageUrl)}
+            className={`absolute top-3 right-3 rounded-lg ${bgClass} p-2 opacity-0 transition-opacity group-hover:opacity-100 focus:opacity-100`}
+            aria-label={`Ampliar imagen: ${label}`}
+          >
+            <ZoomIn className={`w-4 h-4 ${toneClass}`} />
+          </button>
+        ) : null}
       </div>
 
       <ul className="space-y-2">
@@ -535,6 +574,67 @@ function ComparisonPanel({
         ))}
       </ul>
     </motion.div>
+  )
+}
+
+function ImagePreviewModal({
+  image,
+  onClose,
+}: {
+  image: {
+    url: string
+    label: string
+    variant: "correct" | "incorrect"
+  } | null
+  onClose: () => void
+}) {
+  if (!image) return null
+
+  const isCorrect = image.variant === "correct"
+  const toneClass = isCorrect ? "text-success" : "text-destructive"
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-zoom-out"
+        onClick={onClose}
+        aria-label="Cerrar imagen ampliada"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/10 bg-background shadow-2xl"
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-border p-4">
+          <div className="min-w-0">
+            <p className={`text-sm font-medium ${toneClass}`}>
+              {isCorrect ? "Correcto" : "Incorrecto"}
+            </p>
+            <h3 className="truncate text-lg font-semibold text-foreground">
+              {image.label}
+            </h3>
+          </div>
+          <Button
+            type="button"
+            variant="outline"
+            size="icon-sm"
+            onClick={onClose}
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </Button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-3">
+          <img
+            src={image.url}
+            alt={image.label}
+            className="max-h-[78vh] max-w-full object-contain"
+          />
+        </div>
+      </motion.div>
+    </div>
   )
 }
 
