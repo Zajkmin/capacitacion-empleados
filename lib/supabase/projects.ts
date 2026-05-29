@@ -62,7 +62,7 @@ export interface ProjectActivityRecord {
   itemType: SectionItemType
   title: string
   description: string
-  action: "created" | "updated"
+  action: "created" | "updated" | "deleted"
   occurredAt: string
 }
 
@@ -245,6 +245,7 @@ export async function deleteProject(projectId: string) {
 
 function mapProjectSection(section: {
   id: string
+  project_id?: string
   title: string
   description: string
   type: string
@@ -259,6 +260,49 @@ function mapProjectSection(section: {
     content: section.content ?? undefined,
     color: section.color,
   }
+}
+
+async function getSectionActivityContext(sectionId: string) {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("project_sections")
+    .select("id, project_id, title, type")
+    .eq("id", sectionId)
+    .single()
+
+  if (error) throw new Error(error.message)
+
+  return {
+    sectionId: data.id,
+    projectId: data.project_id,
+    sectionTitle: data.title,
+    sectionType: data.type as SectionType,
+  }
+}
+
+async function recordActivityEvent(input: {
+  projectId: string
+  sectionId?: string | null
+  itemId?: string | null
+  actorId?: string
+  action: ProjectActivityRecord["action"]
+  itemType: SectionItemType
+  title: string
+  description?: string
+}) {
+  const supabase = getSupabaseBrowserClient()
+  const { error } = await supabase.from("activity_events").insert({
+    project_id: input.projectId,
+    section_id: input.sectionId ?? null,
+    item_id: input.itemId ?? null,
+    actor_id: input.actorId ?? null,
+    action: input.action,
+    item_type: input.itemType,
+    title: input.title,
+    description: input.description ?? "",
+  })
+
+  if (error) throw new Error(error.message)
 }
 
 export async function listProjectSections(projectId: string) {
@@ -382,6 +426,8 @@ export async function saveSectionItem(input: {
   userId?: string
 }) {
   const supabase = getSupabaseBrowserClient()
+  const action = input.id ? "updated" : "created"
+  const context = await getSectionActivityContext(input.sectionId)
   const { data, error } = await supabase
     .from("section_items")
     .upsert({
@@ -405,61 +451,119 @@ export async function saveSectionItem(input: {
 
   if (error) throw new Error(error.message)
 
-  return mapSectionItem(data)
+  const savedItem = mapSectionItem(data)
+  await recordActivityEvent({
+    projectId: context.projectId,
+    sectionId: context.sectionId,
+    itemId: savedItem.id,
+    actorId: input.userId,
+    action,
+    itemType: savedItem.type,
+    title: savedItem.title,
+    description: savedItem.description,
+  })
+
+  return savedItem
 }
 
 export async function deleteSectionItem(itemId: string) {
   const supabase = getSupabaseBrowserClient()
+  const { data: item, error: itemError } = await supabase
+    .from("section_items")
+    .select("id, section_id, type, title, description")
+    .eq("id", itemId)
+    .maybeSingle()
+
+  if (itemError) throw new Error(itemError.message)
+
+  const context = item
+    ? await getSectionActivityContext(item.section_id)
+    : null
+
   const { error } = await supabase.from("section_items").delete().eq("id", itemId)
 
   if (error) throw new Error(error.message)
-}
 
-function isUpdatedAfterCreate(item: SectionItemRecord) {
-  return new Date(item.updatedAt).getTime() - new Date(item.createdAt).getTime() > 1000
+  if (item && context) {
+    await recordActivityEvent({
+      projectId: context.projectId,
+      sectionId: context.sectionId,
+      itemId: item.id,
+      action: "deleted",
+      itemType: item.type as SectionItemType,
+      title: item.title,
+      description: item.description,
+    })
+  }
 }
 
 export async function listProjectActivity(projectId?: string) {
-  const groups = await listProjectGroupsWithProjects()
-  const projects = groups.flatMap((group) => group.projects)
-  const targetProjects = projectId
-    ? projects.filter((project) => project.id === projectId)
-    : projects
-
-  const activities = await Promise.all(
-    targetProjects.map(async (project) => {
-      const sections = await listProjectSections(project.id)
-      const contentSections = sections.filter(
-        (section) => section.type !== "updates",
-      )
-      const sectionItems = await Promise.all(
-        contentSections.map(async (section) => {
-          const items = await listSectionItems(section.id)
-          return items.map<ProjectActivityRecord>((item) => ({
-            id: item.id,
-            projectId: project.id,
-            projectName: project.name,
-            sectionId: section.id,
-            sectionTitle: section.title,
-            sectionType: section.type,
-            itemType: item.type,
-            title: item.title,
-            description: item.description,
-            action: isUpdatedAfterCreate(item) ? "updated" : "created",
-            occurredAt: isUpdatedAfterCreate(item) ? item.updatedAt : item.createdAt,
-          }))
-        }),
-      )
-
-      return sectionItems.flat()
-    }),
-  )
-
-  return activities
-    .flat()
-    .sort(
-      (first, second) =>
-        new Date(second.occurredAt).getTime() -
-        new Date(first.occurredAt).getTime(),
+  const supabase = getSupabaseBrowserClient()
+  let query = supabase
+    .from("activity_events")
+    .select(
+      "id, project_id, section_id, action, item_type, title, description, created_at, projects(name), project_sections(title, type)",
     )
+    .order("created_at", { ascending: false })
+
+  if (projectId) {
+    query = query.eq("project_id", projectId)
+  }
+
+  const { data, error } = await query
+
+  if (error) throw new Error(error.message)
+
+  return data.map((event: any): ProjectActivityRecord => ({
+    id: event.id,
+    projectId: event.project_id ?? "",
+    projectName: event.projects?.name ?? "Proyecto",
+    sectionId: event.section_id ?? "",
+    sectionTitle: event.project_sections?.title ?? "Seccion",
+    sectionType: (event.project_sections?.type ?? "updates") as SectionType,
+    itemType: event.item_type as SectionItemType,
+    title: event.title,
+    description: event.description,
+    action: event.action as ProjectActivityRecord["action"],
+    occurredAt: event.created_at,
+  }))
+}
+
+export async function getLatestActivityTime() {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("activity_events")
+    .select("created_at")
+    .order("created_at", { ascending: false })
+    .limit(1)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+
+  return data?.created_at ?? null
+}
+
+export async function getNotificationSeenAt(userId: string) {
+  const supabase = getSupabaseBrowserClient()
+  const { data, error } = await supabase
+    .from("notification_reads")
+    .select("seen_at")
+    .eq("user_id", userId)
+    .maybeSingle()
+
+  if (error) throw new Error(error.message)
+
+  return data?.seen_at ?? null
+}
+
+export async function markNotificationsSeen(userId: string) {
+  const supabase = getSupabaseBrowserClient()
+  const seenAt = new Date().toISOString()
+  const { error } = await supabase
+    .from("notification_reads")
+    .upsert({ user_id: userId, seen_at: seenAt })
+
+  if (error) throw new Error(error.message)
+
+  return seenAt
 }

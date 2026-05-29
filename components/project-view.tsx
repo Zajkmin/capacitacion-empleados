@@ -674,6 +674,7 @@ function ProjectUpdatesContent({ projectId }: { projectId: string }) {
   return (
     <ActivityFeed
       projectId={projectId}
+      daysLimit={7}
       emptyLabel="Todavia no hay cambios registrados en las otras secciones de este proyecto."
     />
   )

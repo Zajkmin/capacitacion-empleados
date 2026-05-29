@@ -12,6 +12,7 @@ interface MobileNavProps {
   currentView: ViewType
   onNavigate: (view: ViewType) => void
   onLogout: () => void
+  hasUnreadNotifications?: boolean
 }
 
 const navItems = [
@@ -20,7 +21,12 @@ const navItems = [
   { id: "updates" as ViewType, icon: Bell, label: "Notif." },
 ]
 
-export function MobileNav({ currentView, onNavigate, onLogout }: MobileNavProps) {
+export function MobileNav({
+  currentView,
+  onNavigate,
+  onLogout,
+  hasUnreadNotifications,
+}: MobileNavProps) {
   return (
     <nav className="lg:hidden fixed bottom-0 left-0 right-0 bg-secondary/95 backdrop-blur-lg border-t border-border z-50 pb-safe">
       <div className="flex items-center justify-around px-2 py-2">
@@ -37,7 +43,12 @@ export function MobileNav({ currentView, onNavigate, onLogout }: MobileNavProps)
                   : "text-muted-foreground"
               }`}
             >
-              <item.icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
+              <span className="relative flex h-5 w-5 items-center justify-center">
+                <item.icon className={`w-5 h-5 ${isActive ? "scale-110" : ""} transition-transform`} />
+                {item.id === "updates" && hasUnreadNotifications ? (
+                  <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-secondary" />
+                ) : null}
+              </span>
               <span className="text-[10px] font-medium">{item.label}</span>
               {isActive && (
                 <div className="absolute -top-0.5 w-8 h-1 bg-primary rounded-full" />

@@ -25,6 +25,8 @@ import {
 type ActivityFeedProps = {
   projectId?: string
   showProject?: boolean
+  daysLimit?: number
+  showAttentionAlert?: boolean
   emptyLabel?: string
 }
 
@@ -51,7 +53,12 @@ function formatActivityDate(value: string) {
 }
 
 function getActivityTitle(activity: ProjectActivityRecord) {
-  const verb = activity.action === "updated" ? "Se actualizo" : "Se agrego"
+  const verb =
+    activity.action === "updated"
+      ? "Se actualizo"
+      : activity.action === "deleted"
+        ? "Se elimino"
+        : "Se agrego"
   return `${verb} ${activity.title}`
 }
 
@@ -63,9 +70,19 @@ function getActivityDescription(activity: ProjectActivityRecord, showProject?: b
   return `${context}${activity.description ? `: ${activity.description}` : ""}`
 }
 
+function isInsideDaysLimit(activity: ProjectActivityRecord, daysLimit?: number) {
+  if (!daysLimit) return true
+
+  const limitMs = daysLimit * 24 * 60 * 60 * 1000
+  const cutoff = Date.now() - limitMs
+  return new Date(activity.occurredAt).getTime() >= cutoff
+}
+
 export function ActivityFeed({
   projectId,
   showProject = false,
+  daysLimit,
+  showAttentionAlert = false,
   emptyLabel = "No hay notificaciones recientes.",
 }: ActivityFeedProps) {
   const [activities, setActivities] = useState<ProjectActivityRecord[]>([])
@@ -98,22 +115,55 @@ export function ActivityFeed({
   }, [projectId])
 
   const filters = useMemo(() => {
+    const visibleActivities = activities.filter((activity) =>
+      isInsideDaysLimit(activity, daysLimit),
+    )
     const uniqueTypes = Array.from(
-      new Set(activities.map((activity) => activity.itemType)),
+      new Set(visibleActivities.map((activity) => activity.itemType)),
     )
 
     return ["all", ...uniqueTypes] as Array<SectionItemType | "all">
-  }, [activities])
+  }, [activities, daysLimit])
 
-  const filteredActivities = activities.filter(
+  const visibleActivities = activities.filter((activity) =>
+    isInsideDaysLimit(activity, daysLimit),
+  )
+
+  const filteredActivities = visibleActivities.filter(
     (activity) => selectedType === "all" || activity.itemType === selectedType,
   )
+  const newCount = visibleActivities.filter(
+    (activity) => activity.action === "created",
+  ).length
+  const updatedCount = visibleActivities.length - newCount
 
   return (
     <div className="space-y-4">
       {errorMessage ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
+        </div>
+      ) : null}
+
+      {showAttentionAlert && !isLoading && visibleActivities.length > 0 ? (
+        <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
+          <div className="flex items-start gap-3">
+            <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
+              <Bell className="h-5 w-5" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-semibold text-foreground">
+                Hay cambios que requieren atencion
+              </p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {visibleActivities.length} notificacion
+                {visibleActivities.length === 1 ? "" : "es"} reciente
+                {visibleActivities.length === 1 ? "" : "s"}: {newCount} nuevo
+                {newCount === 1 ? "" : "s"} y {updatedCount} modificado
+                {updatedCount === 1 ? "" : "s"}.
+              </p>
+            </div>
+          </div>
         </div>
       ) : null}
 
@@ -189,7 +239,11 @@ export function ActivityFeed({
                       {config.label}
                     </span>
                     <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
-                      {activity.action === "updated" ? "Modificado" : "Nuevo"}
+                      {activity.action === "updated"
+                        ? "Modificado"
+                        : activity.action === "deleted"
+                          ? "Eliminado"
+                          : "Nuevo"}
                     </span>
                     {activity.action === "created" ? (
                       <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success">

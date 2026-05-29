@@ -13,7 +13,6 @@ import {
   Lock,
 } from "lucide-react"
 import type { ViewType } from "@/components/dashboard-layout"
-import { hasPermission } from "@/lib/roles-permissions"
 
 interface SidebarProps {
   user: { name: string; email: string; role: string }
@@ -22,6 +21,7 @@ interface SidebarProps {
   onLogout: () => void
   collapsed: boolean
   onToggleCollapse: () => void
+  hasUnreadNotifications?: boolean
 }
 
 const navItems = [
@@ -39,6 +39,7 @@ export function Sidebar({
   onLogout,
   collapsed,
   onToggleCollapse,
+  hasUnreadNotifications,
 }: SidebarProps) {
   return (
     <motion.aside
@@ -101,11 +102,16 @@ export function Sidebar({
                       : "text-muted-foreground hover:text-foreground hover:bg-accent/50"
                   }`}
                 >
-                  <item.icon
-                    className={`w-5 h-5 flex-shrink-0 ${
-                      isActive ? "text-primary" : "group-hover:text-primary"
-                    }`}
-                  />
+                  <span className="relative flex h-5 w-5 flex-shrink-0 items-center justify-center">
+                    <item.icon
+                      className={`w-5 h-5 ${
+                        isActive ? "text-primary" : "group-hover:text-primary"
+                      }`}
+                    />
+                    {item.id === "updates" && hasUnreadNotifications ? (
+                      <span className="absolute -right-1 -top-1 h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-card" />
+                    ) : null}
+                  </span>
                   {!collapsed && (
                     <motion.span
                       initial={{ opacity: 0 }}

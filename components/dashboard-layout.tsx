@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/sidebar"
 import { Dashboard } from "@/components/dashboard"
@@ -11,6 +11,11 @@ import { Profile } from "@/components/profile"
 import { AdminPanel } from "@/components/admin-panel"
 import { MobileNav } from "@/components/mobile-nav"
 import { type Permission, type UserRole } from "@/lib/roles-permissions"
+import {
+  getLatestActivityTime,
+  getNotificationSeenAt,
+  markNotificationsSeen,
+} from "@/lib/supabase/projects"
 
 interface DashboardLayoutProps {
   user: {
@@ -35,6 +40,41 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
+  const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
+
+  const refreshUnreadNotifications = async () => {
+    if (!user.id) return
+
+    try {
+      const latestActivityTime = await getLatestActivityTime()
+      if (!latestActivityTime) {
+        setHasUnreadNotifications(false)
+        return
+      }
+
+      const lastSeen = await getNotificationSeenAt(user.id)
+      setHasUnreadNotifications(
+        !lastSeen || new Date(latestActivityTime).getTime() > new Date(lastSeen).getTime(),
+      )
+    } catch {
+      setHasUnreadNotifications(false)
+    }
+  }
+
+  useEffect(() => {
+    refreshUnreadNotifications()
+    const intervalId = window.setInterval(refreshUnreadNotifications, 60000)
+
+    return () => window.clearInterval(intervalId)
+  }, [user.id])
+
+  useEffect(() => {
+    if (currentView !== "updates" || !user.id) return
+
+    markNotificationsSeen(user.id)
+      .then(() => setHasUnreadNotifications(false))
+      .catch(() => setHasUnreadNotifications(false))
+  }, [currentView, user.id])
 
   const handleProjectSelect = (projectId: string) => {
     setSelectedProject(projectId)
@@ -83,6 +123,7 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
           onLogout={onLogout}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
+          hasUnreadNotifications={hasUnreadNotifications}
         />
       </div>
       
@@ -108,6 +149,7 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
           currentView={currentView} 
           onNavigate={setCurrentView}
           onLogout={onLogout}
+          hasUnreadNotifications={hasUnreadNotifications}
         />
       </main>
     </div>

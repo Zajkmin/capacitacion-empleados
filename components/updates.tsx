@@ -28,7 +28,7 @@ export function Updates({ onBack }: UpdatesProps) {
                 Notificaciones
               </h1>
               <p className="text-sm text-muted-foreground">
-                Cambios recientes en todos los proyectos
+                Cambios de la última semana en todos los proyectos
               </p>
             </div>
           </div>
@@ -38,6 +38,7 @@ export function Updates({ onBack }: UpdatesProps) {
       <main className="mx-auto max-w-5xl p-4 lg:p-8">
         <ActivityFeed
           showProject
+          showAttentionAlert
           emptyLabel="Todavia no hay cambios recientes en los proyectos."
         />
       </main>

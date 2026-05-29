@@ -279,6 +279,66 @@ export interface Database {
         }
         Relationships: []
       }
+      activity_events: {
+        Row: {
+          id: string
+          project_id: string | null
+          section_id: string | null
+          item_id: string | null
+          actor_id: string | null
+          action: string
+          item_type: string
+          title: string
+          description: string
+          metadata: Json
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          project_id?: string | null
+          section_id?: string | null
+          item_id?: string | null
+          actor_id?: string | null
+          action: string
+          item_type: string
+          title: string
+          description?: string
+          metadata?: Json
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          project_id?: string | null
+          section_id?: string | null
+          item_id?: string | null
+          actor_id?: string | null
+          action?: string
+          item_type?: string
+          title?: string
+          description?: string
+          metadata?: Json
+          created_at?: string
+        }
+        Relationships: []
+      }
+      notification_reads: {
+        Row: {
+          user_id: string
+          seen_at: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          seen_at?: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          seen_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>

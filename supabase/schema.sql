@@ -151,6 +151,26 @@ create table if not exists public.training_topics (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.activity_events (
+  id uuid primary key default gen_random_uuid(),
+  project_id uuid references public.projects(id) on delete cascade,
+  section_id uuid references public.project_sections(id) on delete set null,
+  item_id uuid references public.section_items(id) on delete set null,
+  actor_id uuid references auth.users(id) on delete set null,
+  action text not null,
+  item_type text not null,
+  title text not null,
+  description text not null default '',
+  metadata jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.notification_reads (
+  user_id uuid primary key references auth.users(id) on delete cascade,
+  seen_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
 insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 values
   (
@@ -323,6 +343,12 @@ before update on public.training_topics
 for each row
 execute function public.set_updated_at();
 
+drop trigger if exists notification_reads_set_updated_at on public.notification_reads;
+create trigger notification_reads_set_updated_at
+before update on public.notification_reads
+for each row
+execute function public.set_updated_at();
+
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -356,6 +382,8 @@ alter table public.projects enable row level security;
 alter table public.project_sections enable row level security;
 alter table public.section_items enable row level security;
 alter table public.training_topics enable row level security;
+alter table public.activity_events enable row level security;
+alter table public.notification_reads enable row level security;
 
 create or replace function public.current_user_role()
 returns text
@@ -583,6 +611,47 @@ on public.training_topics
 for delete
 to authenticated
 using (public.current_user_role() = 'admin');
+
+drop policy if exists "Authenticated users can read activity events" on public.activity_events;
+create policy "Authenticated users can read activity events"
+on public.activity_events
+for select
+to authenticated
+using (true);
+
+drop policy if exists "Content editors can insert activity events" on public.activity_events;
+create policy "Content editors can insert activity events"
+on public.activity_events
+for insert
+to authenticated
+with check (
+  public.current_user_role() = 'admin'
+  or 'add_section' = any(public.current_user_permissions())
+  or 'edit_section' = any(public.current_user_permissions())
+  or 'delete_section' = any(public.current_user_permissions())
+);
+
+drop policy if exists "Users can read their notification state" on public.notification_reads;
+create policy "Users can read their notification state"
+on public.notification_reads
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "Users can insert their notification state" on public.notification_reads;
+create policy "Users can insert their notification state"
+on public.notification_reads
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "Users can update their notification state" on public.notification_reads;
+create policy "Users can update their notification state"
+on public.notification_reads
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
 
 drop policy if exists "Authenticated users can read app storage" on storage.objects;
 create policy "Authenticated users can read app storage"
