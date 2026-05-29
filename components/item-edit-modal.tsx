@@ -6,11 +6,12 @@ import { ImagePlus, X } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { uploadPublicFile } from "@/lib/supabase/storage"
+import type { SectionItemType } from "@/lib/supabase/projects"
 
 interface ItemEditModalProps {
   isOpen: boolean
   isNew: boolean
-  itemType: "rule" | "exception" | "photo" | "error" | "update"
+  itemType: SectionItemType
   item?: {
     id: string
     title: string

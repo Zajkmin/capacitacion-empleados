@@ -12,6 +12,16 @@ export interface ProjectRecord {
   coverImage?: string
 }
 
+type ProjectRow = {
+  id: string
+  group_id: string
+  name: string
+  bg_color: string
+  text_color: string
+  cover_image: string | null
+  sort_order: number
+}
+
 export interface ProjectDetailRecord extends ProjectRecord {
   groupName?: string
 }
@@ -148,21 +158,32 @@ function mapProject(project: {
 
 export async function listProjectGroupsWithProjects() {
   const supabase = getSupabaseBrowserClient()
-  const { data, error } = await supabase
+  const { data: groups, error: groupsError } = await supabase
     .from("project_groups")
-    .select(
-      "id, name, type, projects(id, name, bg_color, text_color, cover_image, sort_order)",
-    )
+    .select("id, name, type")
     .order("sort_order", { ascending: true })
-    .order("sort_order", { referencedTable: "projects", ascending: true })
 
-  if (error) throw new Error(error.message)
+  if (groupsError) throw new Error(groupsError.message)
 
-  return data.map((group) => ({
+  const { data: projects, error: projectsError } = await supabase
+    .from("projects")
+    .select("id, group_id, name, bg_color, text_color, cover_image, sort_order")
+    .order("sort_order", { ascending: true })
+
+  if (projectsError) throw new Error(projectsError.message)
+
+  const projectsByGroup = new Map<string, ProjectRecord[]>()
+  ;((projects ?? []) as ProjectRow[]).forEach((project) => {
+    const currentProjects = projectsByGroup.get(project.group_id) ?? []
+    currentProjects.push(mapProject(project))
+    projectsByGroup.set(project.group_id, currentProjects)
+  })
+
+  return groups.map((group) => ({
     id: group.id,
     name: group.name,
     type: group.type,
-    projects: (group.projects ?? []).map(mapProject),
+    projects: projectsByGroup.get(group.id) ?? [],
   }))
 }
 
@@ -170,14 +191,20 @@ export async function getProject(projectId: string): Promise<ProjectDetailRecord
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("projects")
-    .select("id, name, bg_color, text_color, cover_image, project_groups(name)")
+    .select("id, group_id, name, bg_color, text_color, cover_image, sort_order")
     .eq("id", projectId)
     .single()
 
   if (error) throw new Error(error.message)
 
   const project = mapProject(data)
-  const group = (data as any).project_groups
+  const { data: group, error: groupError } = await supabase
+    .from("project_groups")
+    .select("name")
+    .eq("id", data.group_id)
+    .maybeSingle()
+
+  if (groupError) throw new Error(groupError.message)
 
   return {
     ...project,
@@ -489,7 +516,7 @@ export async function saveSectionItem(input: {
   return savedItem
 }
 
-export async function deleteSectionItem(itemId: string) {
+export async function deleteSectionItem(itemId: string, userId?: string) {
   const supabase = getSupabaseBrowserClient()
   const { data: item, error: itemError } = await supabase
     .from("section_items")
@@ -512,6 +539,7 @@ export async function deleteSectionItem(itemId: string) {
       projectId: context.projectId,
       sectionId: context.sectionId,
       itemId: null,
+      actorId: userId,
       action: "deleted",
       itemType: item.type as SectionItemType,
       title: item.title,
