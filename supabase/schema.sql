@@ -434,6 +434,46 @@ as $$
     );
 $$;
 
+create or replace function public.update_own_profile_name(new_name text)
+returns table (
+  id uuid,
+  name text,
+  email text,
+  role text,
+  extra_permissions text[],
+  created_at timestamptz
+)
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  cleaned_name text := nullif(trim(new_name), '');
+begin
+  if auth.uid() is null then
+    raise exception 'Usuario no autenticado';
+  end if;
+
+  if cleaned_name is null then
+    raise exception 'El nombre no puede estar vacio';
+  end if;
+
+  return query
+    update public.profiles p
+    set name = cleaned_name
+    where p.id = auth.uid()
+    returning
+      p.id,
+      p.name,
+      p.email,
+      p.role,
+      p.extra_permissions,
+      p.created_at;
+end;
+$$;
+
+grant execute on function public.update_own_profile_name(text) to authenticated;
+
 drop policy if exists "Users can read their own profile" on public.profiles;
 create policy "Users can read their own profile"
 on public.profiles

@@ -26,6 +26,7 @@ interface DashboardLayoutProps {
     permissions?: Permission[]
   }
   onLogout: () => void
+  onUserUpdate: (updates: { name?: string }) => void
 }
 
 export type ViewType = 
@@ -36,7 +37,7 @@ export type ViewType =
   | "profile"
   | "admin"
 
-export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
+export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayoutProps) {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
@@ -104,7 +105,14 @@ export function DashboardLayout({ user, onLogout }: DashboardLayoutProps) {
       case "updates":
         return <Updates onBack={handleBackToDashboard} />
       case "profile":
-        return <Profile user={user} onBack={handleBackToDashboard} />
+        return (
+          <Profile
+            user={user}
+            onBack={handleBackToDashboard}
+            onLogout={onLogout}
+            onUserUpdate={onUserUpdate}
+          />
+        )
       case "admin":
         return <AdminPanel onBack={handleBackToDashboard} />
       default:

@@ -362,7 +362,21 @@ export interface Database {
       }
     }
     Views: Record<string, never>
-    Functions: Record<string, never>
+    Functions: {
+      update_own_profile_name: {
+        Args: {
+          new_name: string
+        }
+        Returns: {
+          id: string
+          name: string
+          email: string
+          role: string
+          extra_permissions: string[]
+          created_at: string
+        }[]
+      }
+    }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
   }

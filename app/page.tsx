@@ -49,6 +49,12 @@ export default function Home() {
     setIsLoggedIn(false)
   }
 
+  const handleUserUpdate = (updates: Partial<AppUser>) => {
+    setUser((currentUser) =>
+      currentUser ? { ...currentUser, ...updates } : currentUser,
+    )
+  }
+
   if (isCheckingSession) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background">
@@ -64,5 +70,11 @@ export default function Home() {
     return <LoginPage onLogin={handleLogin} />
   }
 
-  return <DashboardLayout user={user!} onLogout={handleLogout} />
+  return (
+    <DashboardLayout
+      user={user!}
+      onLogout={handleLogout}
+      onUserUpdate={handleUserUpdate}
+    />
+  )
 }

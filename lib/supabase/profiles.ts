@@ -84,6 +84,36 @@ export async function updateProfile(input: {
   return mapProfileToUser(data)
 }
 
+export async function updateOwnProfileName(input: {
+  name: string
+}) {
+  const supabase = getSupabaseBrowserClient()
+  const trimmedName = input.name.trim()
+
+  if (!trimmedName) {
+    throw new Error("El nombre no puede estar vacio.")
+  }
+
+  const { data, error } = await supabase.rpc("update_own_profile_name", {
+    new_name: trimmedName,
+  })
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  const profile = data?.[0]
+  if (!profile) {
+    throw new Error("No se pudo actualizar el perfil.")
+  }
+
+  await supabase.auth.updateUser({
+    data: { name: profile.name, full_name: profile.name },
+  })
+
+  return mapProfileToUser(profile)
+}
+
 export async function saveUserProjectAssignments(input: {
   userId: string
   projectIds: string[]
