@@ -138,7 +138,7 @@ export function ActivityFeed({
   const updatedCount = visibleActivities.length - newCount
 
   return (
-    <div className="w-full min-w-0 space-y-4 overflow-x-hidden">
+    <div className="w-full min-w-0 max-w-full space-y-4 overflow-x-hidden">
       {errorMessage ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
@@ -146,8 +146,8 @@ export function ActivityFeed({
       ) : null}
 
       {showAttentionAlert && !isLoading && visibleActivities.length > 0 ? (
-        <div className="min-w-0 rounded-2xl border border-primary/30 bg-primary/10 p-4">
-          <div className="flex items-start gap-3">
+        <div className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-primary/30 bg-primary/10 p-4">
+          <div className="flex min-w-0 items-start gap-3">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <Bell className="h-5 w-5" />
             </div>
@@ -168,7 +168,7 @@ export function ActivityFeed({
       ) : null}
 
       {filters.length > 1 ? (
-        <div className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1">
+        <div className="flex w-full min-w-0 max-w-full gap-2 overflow-x-auto pb-1">
           {filters.map((type) => (
             <button
               key={type}
@@ -199,7 +199,7 @@ export function ActivityFeed({
         </div>
       ) : null}
 
-      <div className="min-w-0 space-y-3">
+        <div className="min-w-0 max-w-full space-y-3">
         {filteredActivities.map((activity, index) => {
           const config = typeConfig[activity.itemType] ?? {
             icon: FileImage,
@@ -211,7 +211,7 @@ export function ActivityFeed({
           return (
             <motion.article
               key={activity.id}
-              className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"
+              className="min-w-0 max-w-full overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
@@ -223,7 +223,7 @@ export function ActivityFeed({
 
                 <div className="min-w-0 flex-1">
                   <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-2">
-                    <h3 className="min-w-0 break-words font-semibold text-foreground">
+                    <h3 className="min-w-0 break-words font-semibold text-foreground [overflow-wrap:anywhere]">
                       {getActivityTitle(activity)}
                     </h3>
                     <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs text-muted-foreground">
@@ -231,14 +231,14 @@ export function ActivityFeed({
                       {formatActivityDate(activity.occurredAt)}
                     </span>
                   </div>
-                  <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
                     {getActivityDescription(activity, showProject)}
                   </p>
                   <div className="mt-3 flex min-w-0 flex-wrap gap-2">
-                    <span className={`max-w-full break-words rounded-md px-2 py-1 text-xs font-medium ${config.color}`}>
+                    <span className={`max-w-full break-words rounded-md px-2 py-1 text-xs font-medium [overflow-wrap:anywhere] ${config.color}`}>
                       {config.label}
                     </span>
-                    <span className="max-w-full break-words rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                    <span className="max-w-full break-words rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground [overflow-wrap:anywhere]">
                       {activity.action === "updated"
                         ? "Modificado"
                         : activity.action === "deleted"

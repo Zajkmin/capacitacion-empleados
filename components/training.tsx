@@ -350,13 +350,13 @@ export function Training({ user, onBack }: TrainingProps) {
   }
 
   return (
-    <div className="min-h-screen pb-24 lg:pb-8">
+    <div className="min-h-screen overflow-x-hidden pb-24 lg:pb-8">
       <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-lg">
         <div className="p-4 lg:px-8">
-          <div className="flex items-center gap-4">
+          <div className="flex min-w-0 items-center gap-3 sm:gap-4">
             <button
               onClick={onBack}
-              className="rounded-xl border border-border bg-card p-2 transition-colors hover:bg-card/80"
+              className="flex-shrink-0 rounded-xl border border-border bg-card p-2 transition-colors hover:bg-card/80"
               aria-label="Volver"
             >
               <ArrowLeft className="h-5 w-5" />
@@ -790,7 +790,7 @@ function TrainingDetail({
                   : "Informacion de la capacitacion"}
               </p>
             </div>
-            <div className="flex items-center gap-2">
+            <div className="flex flex-shrink-0 items-center gap-2">
               {canEdit ? (
                 <Button
                   type="button"
@@ -818,8 +818,8 @@ function TrainingDetail({
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-6xl gap-6 p-4 lg:grid-cols-[1fr_360px] lg:p-8">
-        <section className="rounded-lg border border-border bg-card p-6">
+      <main className="mx-auto grid w-full min-w-0 max-w-6xl gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 lg:p-8">
+        <section className="min-w-0 overflow-hidden rounded-lg border border-border bg-card p-4 sm:p-6">
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{getRoleLabel(topic.category)}</Badge>
             <Badge variant="outline">Orden {topic.order}</Badge>
@@ -834,15 +834,15 @@ function TrainingDetail({
             </Badge>
           </div>
 
-          <h2 className="text-2xl font-semibold text-foreground">
+          <h2 className="break-words text-2xl font-semibold text-foreground [overflow-wrap:anywhere]">
             {topic.title}
           </h2>
-          <p className="mt-2 text-sm text-muted-foreground">
+          <p className="mt-2 break-words text-sm text-muted-foreground [overflow-wrap:anywhere]">
             {topic.summary}
           </p>
 
           <div className="mt-6 border-t border-border pt-6">
-            <p className="whitespace-pre-line text-sm leading-relaxed text-foreground/85">
+            <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
               {topic.body}
             </p>
           </div>
@@ -858,10 +858,10 @@ function TrainingDetail({
               variant="outline"
               onClick={() => previousTopic && onNavigateTopic(previousTopic)}
               disabled={!previousTopic}
-              className="h-auto justify-start gap-3 px-4 py-3 text-left"
+              className="h-auto min-w-0 justify-start gap-3 px-4 py-3 text-left"
             >
               <ArrowLeft className="h-4 w-4 flex-shrink-0" />
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block text-xs text-muted-foreground">
                   Paso anterior
                 </span>
@@ -875,9 +875,9 @@ function TrainingDetail({
               type="button"
               onClick={() => nextTopic && onNavigateTopic(nextTopic)}
               disabled={!nextTopic}
-              className="h-auto justify-between gap-3 px-4 py-3 text-left"
+              className="h-auto min-w-0 justify-between gap-3 px-4 py-3 text-left"
             >
-              <span className="min-w-0">
+              <span className="min-w-0 flex-1">
                 <span className="block text-xs opacity-80">
                   Siguiente paso
                 </span>
@@ -890,7 +890,7 @@ function TrainingDetail({
           </div>
         </section>
 
-        <aside className="rounded-lg border border-border bg-card p-4">
+        <aside className="min-w-0 overflow-hidden rounded-lg border border-border bg-card p-4">
           <TrainingMedia topic={topic} onPreview={setPreview} />
         </aside>
       </main>
