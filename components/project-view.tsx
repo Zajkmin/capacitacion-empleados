@@ -15,6 +15,8 @@ import {
   Plus,
   Edit2,
   Trash2,
+  ZoomIn,
+  X,
 } from "lucide-react"
 import { VisualLearning } from "@/components/visual-learning"
 import { Library } from "@/components/library"
@@ -782,6 +784,7 @@ function useSectionItems(sectionId: string, userId?: string) {
       type: itemType,
       title: itemData.title,
       description: itemData.description,
+      content: itemData.content,
       imageUrl: itemData.imageUrl,
       metadata,
       userId,
@@ -821,6 +824,7 @@ function itemToModalItem(item: SectionItemRecord) {
     id: item.id,
     title: item.title,
     description: item.description,
+    content: item.content,
     imageUrl: item.imageUrl,
     validUntil:
       typeof item.metadata.validUntil === "string"
@@ -887,7 +891,36 @@ function SectionItemsContent({
     useSectionItems(sectionId, userId)
   const [showModal, setShowModal] = useState(false)
   const [editingItem, setEditingItem] = useState<SectionItemRecord | null>(null)
+  const [selectedItem, setSelectedItem] = useState<SectionItemRecord | null>(null)
+  const [previewImage, setPreviewImage] = useState<{
+    url: string
+    title: string
+  } | null>(null)
   const { confirmAction, confirmDialog } = useConfirmAction()
+
+  const selectedItemIndex = selectedItem
+    ? items.findIndex((item) => item.id === selectedItem.id)
+    : -1
+  const currentSelectedItem =
+    selectedItemIndex >= 0 ? items[selectedItemIndex] : selectedItem
+  const previousItem =
+    selectedItemIndex > 0 ? items[selectedItemIndex - 1] : null
+  const nextItem =
+    selectedItemIndex >= 0 && selectedItemIndex < items.length - 1
+      ? items[selectedItemIndex + 1]
+      : null
+  const itemTypeLabel =
+    itemType === "rule"
+      ? "Regla"
+      : itemType === "exception"
+        ? "Excepcion"
+        : itemType === "error"
+          ? "Error"
+          : "Contenido"
+  const detailTitle =
+    selectedItemIndex >= 0
+      ? `${itemTypeLabel} ${selectedItemIndex + 1} - ${currentSelectedItem?.title ?? ""}`
+      : currentSelectedItem?.title ?? ""
 
   const handleSave = async (itemData: Record<string, any>) => {
     try {
@@ -903,8 +936,194 @@ function SectionItemsContent({
     }
   }
 
+  const handleDeleteItem = async (item: SectionItemRecord) => {
+    const confirmed = await confirmAction({
+      title: "Eliminar contenido",
+      description: `Esta accion eliminara "${item.title}".`,
+      confirmLabel: "Eliminar",
+    })
+    if (!confirmed) return
+
+    deleteItem(item.id)
+      .then(() => {
+        if (selectedItem?.id === item.id) {
+          setSelectedItem(null)
+        }
+      })
+      .catch((error) => {
+        setErrorMessage(
+          error instanceof Error
+            ? error.message
+            : "No se pudo eliminar el contenido.",
+        )
+      })
+  }
+
+  if (currentSelectedItem) {
+    return (
+      <div className="min-w-0 space-y-4 overflow-x-hidden">
+        {errorMessage ? (
+          <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+            {errorMessage}
+          </div>
+        ) : null}
+
+        <div className="rounded-lg border border-border bg-card p-4 sm:p-6">
+          <div className="mb-5 flex min-w-0 items-start gap-3">
+            <button
+              type="button"
+              onClick={() => setSelectedItem(null)}
+              className="flex-shrink-0 rounded-xl border border-border bg-background p-2 transition-colors hover:bg-accent"
+              aria-label="Volver a la lista"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+
+            <div className="min-w-0 flex-1">
+              <p className="text-xs font-medium uppercase text-muted-foreground">
+                {selectedItemIndex >= 0
+                  ? `${itemTypeLabel} ${selectedItemIndex + 1} de ${items.length}`
+                  : itemTypeLabel}
+              </p>
+              <h2 className="mt-1 break-words text-xl font-semibold text-foreground [overflow-wrap:anywhere]">
+                {detailTitle}
+              </h2>
+              <div className="mt-2">
+                <SectionItemMeta item={currentSelectedItem} />
+              </div>
+            </div>
+
+            {(canEdit || canDelete) ? (
+              <div className="flex flex-shrink-0 gap-2">
+                {canEdit ? (
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      const confirmed = await confirmAction({
+                        title: "Editar contenido",
+                        description: `Vas a modificar "${currentSelectedItem.title}".`,
+                        confirmLabel: "Editar",
+                      })
+                      if (!confirmed) return
+                      setEditingItem(currentSelectedItem)
+                      setShowModal(true)
+                    }}
+                    className="rounded-lg bg-primary/10 p-2 text-primary transition-colors hover:bg-primary/20"
+                    title="Editar"
+                  >
+                    <Edit2 className="h-4 w-4" />
+                  </button>
+                ) : null}
+                {canDelete ? (
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteItem(currentSelectedItem)}
+                    className="rounded-lg bg-destructive/10 p-2 text-destructive transition-colors hover:bg-destructive/20"
+                    title="Eliminar"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+
+          <div className="border-t border-border pt-5">
+            <p className="whitespace-pre-line break-words text-sm leading-relaxed text-foreground/85 [overflow-wrap:anywhere]">
+              {currentSelectedItem.description}
+            </p>
+
+            {currentSelectedItem.content ? (
+              <div className="mt-5 rounded-lg border border-border bg-background/50 p-4">
+                <h3 className="mb-2 text-sm font-semibold text-foreground">
+                  Explicacion adicional
+                </h3>
+                <p className="whitespace-pre-line break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
+                  {currentSelectedItem.content}
+                </p>
+              </div>
+            ) : null}
+
+            {currentSelectedItem.imageUrl ? (
+              <button
+                type="button"
+                onClick={() =>
+                  setPreviewImage({
+                    url: currentSelectedItem.imageUrl!,
+                    title: currentSelectedItem.title,
+                  })
+                }
+                className="group relative mt-5 block w-full overflow-hidden rounded-xl border border-border focus:outline-none focus:ring-2 focus:ring-primary"
+              >
+                <img
+                  src={currentSelectedItem.imageUrl}
+                  alt=""
+                  className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]"
+                />
+                <span className="absolute right-3 top-3 rounded-lg bg-black/60 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100">
+                  <ZoomIn className="h-4 w-4" />
+                </span>
+              </button>
+            ) : null}
+          </div>
+
+          <div className="mt-6 grid gap-3 border-t border-border pt-5 sm:grid-cols-2">
+            <button
+              type="button"
+              onClick={() => previousItem && setSelectedItem(previousItem)}
+              disabled={!previousItem}
+              className="flex min-w-0 items-center gap-3 rounded-xl border border-border bg-background px-4 py-3 text-left text-sm transition-colors hover:bg-accent disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <ArrowLeft className="h-4 w-4 flex-shrink-0" />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs text-muted-foreground">
+                  Anterior
+                </span>
+                <span className="block truncate">
+                  {previousItem?.title ?? "Inicio de la lista"}
+                </span>
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => nextItem && setSelectedItem(nextItem)}
+              disabled={!nextItem}
+              className="flex min-w-0 items-center justify-between gap-3 rounded-xl bg-primary px-4 py-3 text-left text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs opacity-80">Siguiente</span>
+                <span className="block truncate">
+                  {nextItem?.title ?? "Fin de la lista"}
+                </span>
+              </span>
+              <ChevronRight className="h-4 w-4 flex-shrink-0" />
+            </button>
+          </div>
+        </div>
+
+        <ItemEditModal
+          isOpen={showModal}
+          isNew={!editingItem}
+          itemType={itemType}
+          item={editingItem ? itemToModalItem(editingItem) : undefined}
+          onSave={handleSave}
+          onClose={() => {
+            setShowModal(false)
+            setEditingItem(null)
+          }}
+        />
+        <SectionImagePreviewModal
+          image={previewImage}
+          onClose={() => setPreviewImage(null)}
+        />
+        {confirmDialog}
+      </div>
+    )
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="min-w-0 space-y-4 overflow-x-hidden">
       {errorMessage ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
@@ -939,31 +1158,40 @@ function SectionItemsContent({
       {items.map((item, index) => (
         <motion.div
           key={item.id}
-          className={`glass-card rounded-2xl p-5 group ${cardClass}`}
+          className={`glass-card group rounded-2xl p-4 sm:p-5 ${cardClass}`}
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: index * 0.05 }}
         >
-          <div className="flex items-start gap-4">
+          <div className="flex min-w-0 items-start gap-3 sm:gap-4">
             <div className={`w-10 h-10 rounded-xl ${accentClass} flex items-center justify-center flex-shrink-0`}>
               <Icon className={`w-5 h-5 ${iconClass}`} />
             </div>
-            <div className="flex-1">
-              <div className="flex items-center justify-between mb-1 gap-3">
-                <h3 className="font-semibold text-foreground">{item.title}</h3>
+            <button
+              type="button"
+              onClick={() => setSelectedItem(item)}
+              className="min-w-0 flex-1 text-left focus:outline-none"
+            >
+              <div className="mb-1 flex min-w-0 flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
+                <h3 className="min-w-0 break-words font-semibold text-foreground [overflow-wrap:anywhere]">
+                  {itemTypeLabel} {index + 1} - {item.title}
+                </h3>
                 <SectionItemMeta item={item} />
               </div>
-              <p className="text-sm text-muted-foreground leading-relaxed">
+              <p className="line-clamp-2 break-words text-sm leading-relaxed text-muted-foreground [overflow-wrap:anywhere]">
                 {item.description}
               </p>
               {item.imageUrl ? (
-                <img
-                  src={item.imageUrl}
-                  alt=""
-                  className="mt-4 aspect-video w-full max-w-md rounded-xl object-cover"
-                />
+                <span className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                  Incluye imagen de referencia
+                  <ZoomIn className="h-3.5 w-3.5" />
+                </span>
               ) : null}
-            </div>
+              <span className="mt-3 inline-flex items-center gap-1 text-sm font-medium text-primary">
+                Ver detalle
+                <ChevronRight className="h-4 w-4" />
+              </span>
+            </button>
             {(canEdit || canDelete) && (
               <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity ml-2">
                 {canEdit && (
@@ -986,21 +1214,7 @@ function SectionItemsContent({
                 )}
                 {canDelete && (
                   <button
-                    onClick={async () => {
-                      const confirmed = await confirmAction({
-                        title: "Eliminar contenido",
-                        description: `Esta accion eliminara "${item.title}".`,
-                        confirmLabel: "Eliminar",
-                      })
-                      if (!confirmed) return
-                      deleteItem(item.id).catch((error) => {
-                        setErrorMessage(
-                          error instanceof Error
-                            ? error.message
-                            : "No se pudo eliminar el contenido.",
-                        )
-                      })
-                    }}
+                    onClick={() => handleDeleteItem(item)}
                     className="p-1.5 rounded-lg bg-destructive/10 text-destructive hover:bg-destructive/20 transition-colors"
                     title="Eliminar"
                   >
@@ -1025,6 +1239,59 @@ function SectionItemsContent({
         }}
       />
       {confirmDialog}
+    </div>
+  )
+}
+
+function SectionImagePreviewModal({
+  image,
+  onClose,
+}: {
+  image: { url: string; title: string } | null
+  onClose: () => void
+}) {
+  if (!image) return null
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-zoom-out"
+        onClick={onClose}
+        aria-label="Cerrar imagen ampliada"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/10 bg-background shadow-2xl"
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-border p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-primary">
+              Imagen de referencia
+            </p>
+            <h3 className="truncate text-lg font-semibold text-foreground">
+              {image.title}
+            </h3>
+          </div>
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-border bg-card p-2 transition-colors hover:bg-accent"
+            aria-label="Cerrar"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-3">
+          <img
+            src={image.url}
+            alt={image.title}
+            className="max-h-[78vh] max-w-full object-contain"
+          />
+        </div>
+      </motion.div>
     </div>
   )
 }

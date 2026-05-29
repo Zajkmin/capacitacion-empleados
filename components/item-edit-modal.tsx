@@ -36,6 +36,7 @@ export function ItemEditModal({
 }: ItemEditModalProps) {
   const [title, setTitle] = useState(item?.title || "")
   const [description, setDescription] = useState(item?.description || "")
+  const [content, setContent] = useState(item?.content || "")
   const [validUntil, setValidUntil] = useState(item?.validUntil || "Permanente")
   const [date, setDate] = useState(item?.date || new Date().toISOString().split("T")[0])
   const [imageUrl, setImageUrl] = useState(item?.imageUrl || "")
@@ -47,6 +48,7 @@ export function ItemEditModal({
 
     setTitle(item?.title || "")
     setDescription(item?.description || "")
+    setContent(item?.content || "")
     setValidUntil(item?.validUntil || "Permanente")
     setDate(item?.date || new Date().toISOString().split("T")[0])
     setImageUrl(item?.imageUrl || "")
@@ -68,6 +70,7 @@ export function ItemEditModal({
   const resetForm = () => {
     setTitle("")
     setDescription("")
+    setContent("")
     setValidUntil("Permanente")
     setDate(new Date().toISOString().split("T")[0])
     setImageUrl("")
@@ -108,6 +111,10 @@ export function ItemEditModal({
     const itemData: any = {
       title: title.trim(),
       description: description.trim(),
+    }
+
+    if (content.trim()) {
+      itemData.content = content.trim()
     }
 
     if (itemType === "exception") {
@@ -173,6 +180,18 @@ export function ItemEditModal({
               onChange={(e) => setDescription(e.target.value)}
               placeholder={`Descripción detallada del ${getItemTypeLabel().toLowerCase()}`}
               className="w-full min-h-[120px] px-3 py-2 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-2">
+              Explicacion adicional
+            </label>
+            <textarea
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              placeholder="Detalles, criterios, ejemplos o instrucciones complementarias"
+              className="w-full min-h-[160px] px-3 py-2 bg-background border border-input rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary resize-none"
             />
           </div>
 
