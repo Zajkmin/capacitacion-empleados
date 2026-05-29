@@ -22,7 +22,6 @@ import { ActivityFeed } from "@/components/activity-feed"
 import { useConfirmAction } from "@/components/confirm-action-dialog"
 import { SectionEditModal } from "@/components/section-edit-modal"
 import { ItemEditModal } from "@/components/item-edit-modal"
-import type { ViewType } from "@/components/dashboard-layout"
 import {
   userHasPermission,
   type Permission,
@@ -47,7 +46,9 @@ interface ProjectViewProps {
   projectName?: string
   projectColor?: string
   onBack: () => void
-  onNavigate: (view: ViewType) => void
+  activeSection: string | null
+  onSectionSelect: (sectionId: string) => void
+  onSectionBack: () => void
   user?: {
     id?: string
     name: string
@@ -156,8 +157,16 @@ function getProjectBadgeStyle(bgClass: string) {
   return { className: bgClass, style: undefined }
 }
 
-export function ProjectView({ projectId, projectName, projectColor, onBack, onNavigate, user }: ProjectViewProps) {
-  const [activeSection, setActiveSection] = useState<string | null>(null)
+export function ProjectView({
+  projectId,
+  projectName,
+  projectColor,
+  onBack,
+  activeSection,
+  onSectionSelect,
+  onSectionBack,
+  user,
+}: ProjectViewProps) {
   const [project, setProject] = useState<ProjectDetailRecord | null>(null)
   const [sections, setSections] = useState<ProjectSectionView[]>(
     mainSections.map(withSectionIcon),
@@ -215,13 +224,21 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
 
   if (activeSection) {
     const currentSection = sections.find((section) => section.id === activeSection)
-    if (!currentSection) return null
+    if (!currentSection) {
+      return (
+        <div className="min-h-screen p-4 lg:p-8">
+          <div className="mx-auto max-w-4xl rounded-lg border border-border bg-card/50 p-4 text-sm text-muted-foreground">
+            Cargando seccion...
+          </div>
+        </div>
+      )
+    }
 
     if (currentSection.type === "visual-learning") {
       return (
         <>
           <VisualLearning
-            onBack={() => setActiveSection(null)}
+            onBack={onSectionBack}
             sectionId={currentSection.id}
             canAdd={canAdd}
             canEdit={canEdit}
@@ -235,7 +252,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
       return (
         <>
           <Library
-            onBack={() => setActiveSection(null)}
+            onBack={onSectionBack}
             sectionId={currentSection.id}
             canAdd={canAdd}
             canEdit={canEdit}
@@ -252,7 +269,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
           projectId={projectId}
           sectionId={activeSection}
           section={currentSection}
-          onBack={() => setActiveSection(null)}
+          onBack={onSectionBack}
           projectName={displayName}
           onEdit={async () => {
           const section = sections.find((s) => s.id === activeSection)
@@ -276,7 +293,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
             deleteProjectSection(activeSection)
               .then(() => {
                 setSections(sections.filter((s) => s.id !== activeSection))
-                setActiveSection(null)
+                onSectionBack()
                 setSectionError("")
               })
               .catch((error) => {
@@ -428,7 +445,7 @@ export function ProjectView({ projectId, projectName, projectColor, onBack, onNa
               transition={{ delay: index * 0.05 }}
             >
               <button
-                onClick={() => setActiveSection(section.id)}
+                onClick={() => onSectionSelect(section.id)}
                 className="absolute inset-0 rounded-2xl z-20"
                 aria-label={`Ver ${section.title}`}
               />

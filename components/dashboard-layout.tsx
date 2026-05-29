@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Sidebar } from "@/components/sidebar"
 import { Dashboard } from "@/components/dashboard"
@@ -37,11 +37,74 @@ export type ViewType =
   | "profile"
   | "admin"
 
+type NavigationState = {
+  view: ViewType
+  projectId?: string | null
+  sectionId?: string | null
+}
+
+function parseNavigationHash(): NavigationState {
+  if (typeof window === "undefined") return { view: "dashboard" }
+
+  const hash = window.location.hash.replace(/^#\/?/, "")
+  const params = new URLSearchParams(hash)
+  const view = params.get("view") as ViewType | null
+  const projectId = params.get("project")
+  const sectionId = params.get("section")
+
+  if (view === "project" && projectId) {
+    return { view: "project", projectId, sectionId }
+  }
+
+  if (view && ["dashboard", "training", "updates", "profile", "admin"].includes(view)) {
+    return { view }
+  }
+
+  return { view: "dashboard" }
+}
+
+function buildNavigationHash(state: NavigationState) {
+  const params = new URLSearchParams()
+  params.set("view", state.view)
+
+  if (state.projectId) params.set("project", state.projectId)
+  if (state.sectionId) params.set("section", state.sectionId)
+
+  return `#${params.toString()}`
+}
+
 export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayoutProps) {
   const [currentView, setCurrentView] = useState<ViewType>("dashboard")
   const [selectedProject, setSelectedProject] = useState<string | null>(null)
+  const [selectedSection, setSelectedSection] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
+  const isNavigatingHistory = useRef(false)
+
+  const applyNavigationState = (state: NavigationState) => {
+    setCurrentView(state.view)
+    setSelectedProject(state.view === "project" ? state.projectId ?? null : null)
+    setSelectedSection(state.view === "project" ? state.sectionId ?? null : null)
+  }
+
+  const navigateTo = (state: NavigationState, mode: "push" | "replace" = "push") => {
+    applyNavigationState(state)
+
+    if (typeof window === "undefined" || isNavigatingHistory.current) return
+
+    const url = buildNavigationHash(state)
+    const historyState = { nexo: true, ...state }
+
+    if (mode === "replace") {
+      window.history.replaceState(historyState, "", url)
+    } else {
+      window.history.pushState(historyState, "", url)
+    }
+  }
+
+  const navigateView = (view: ViewType) => {
+    navigateTo({ view })
+  }
 
   const refreshUnreadNotifications = async () => {
     if (!user.id) return
@@ -70,6 +133,26 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
   }, [user.id])
 
   useEffect(() => {
+    const initialState = parseNavigationHash()
+    navigateTo(initialState, "replace")
+
+    const handlePopState = (event: PopStateEvent) => {
+      isNavigatingHistory.current = true
+      const nextState = event.state?.nexo
+        ? (event.state as NavigationState)
+        : parseNavigationHash()
+
+      applyNavigationState(nextState)
+      window.setTimeout(() => {
+        isNavigatingHistory.current = false
+      }, 0)
+    }
+
+    window.addEventListener("popstate", handlePopState)
+    return () => window.removeEventListener("popstate", handlePopState)
+  }, [])
+
+  useEffect(() => {
     if (currentView !== "updates" || !user.id) return
 
     markNotificationsSeen(user.id)
@@ -78,13 +161,25 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
   }, [currentView, user.id])
 
   const handleProjectSelect = (projectId: string) => {
-    setSelectedProject(projectId)
-    setCurrentView("project")
+    navigateTo({ view: "project", projectId })
   }
 
   const handleBackToDashboard = () => {
-    setSelectedProject(null)
-    setCurrentView("dashboard")
+    navigateTo({ view: "dashboard" }, "replace")
+  }
+
+  const handleSectionSelect = (sectionId: string) => {
+    if (!selectedProject) return
+    navigateTo({ view: "project", projectId: selectedProject, sectionId })
+  }
+
+  const handleBackToProject = () => {
+    if (!selectedProject) {
+      navigateTo({ view: "dashboard" }, "replace")
+      return
+    }
+
+    navigateTo({ view: "project", projectId: selectedProject }, "replace")
   }
 
   const renderView = () => {
@@ -96,7 +191,9 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
           <ProjectView 
             projectId={selectedProject!} 
             onBack={handleBackToDashboard}
-            onNavigate={setCurrentView}
+            activeSection={selectedSection}
+            onSectionSelect={handleSectionSelect}
+            onSectionBack={handleBackToProject}
             user={user}
           />
         )
@@ -127,7 +224,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
         <Sidebar
           user={user}
           currentView={currentView}
-          onNavigate={setCurrentView}
+          onNavigate={navigateView}
           onLogout={onLogout}
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
@@ -155,7 +252,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
         {/* Mobile Bottom Navigation */}
         <MobileNav 
           currentView={currentView} 
-          onNavigate={setCurrentView}
+          onNavigate={navigateView}
           onLogout={onLogout}
           hasUnreadNotifications={hasUnreadNotifications}
           canAccessAdmin={user.role === "admin"}
