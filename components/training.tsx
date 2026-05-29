@@ -181,6 +181,32 @@ export function Training({ user, onBack }: TrainingProps) {
     )
   }, [query, selectedRoleView, visibleTopics])
 
+  const selectedTopicNavigation = useMemo(() => {
+    if (!selectedTopic) {
+      return {
+        currentStep: 0,
+        totalSteps: 0,
+        previousTopic: null,
+        nextTopic: null,
+      }
+    }
+
+    const routeTopics = sortTopics(
+      visibleTopics.filter((topic) => topic.category === selectedTopic.category),
+    )
+    const currentIndex = routeTopics.findIndex((topic) => topic.id === selectedTopic.id)
+
+    return {
+      currentStep: currentIndex >= 0 ? currentIndex + 1 : 0,
+      totalSteps: routeTopics.length,
+      previousTopic: currentIndex > 0 ? routeTopics[currentIndex - 1] : null,
+      nextTopic:
+        currentIndex >= 0 && currentIndex < routeTopics.length - 1
+          ? routeTopics[currentIndex + 1]
+          : null,
+    }
+  }, [selectedTopic, visibleTopics])
+
   const handleCreate = () => {
     if (!canAdd) return
     const category = selectedRoleView ?? "general"
@@ -294,9 +320,14 @@ export function Training({ user, onBack }: TrainingProps) {
     return (
       <TrainingDetail
         topic={selectedTopic}
+        currentStep={selectedTopicNavigation.currentStep}
+        totalSteps={selectedTopicNavigation.totalSteps}
+        previousTopic={selectedTopicNavigation.previousTopic}
+        nextTopic={selectedTopicNavigation.nextTopic}
         canEdit={canEdit}
         canDelete={canDelete}
         onBack={() => setSelectedTopic(null)}
+        onNavigateTopic={setSelectedTopic}
         onEdit={() => handleEditTopic(selectedTopic)}
         onDelete={() => handleDeleteTopic(selectedTopic.id)}
       >
@@ -664,17 +695,27 @@ function TrainingStepCard({
 
 function TrainingDetail({
   topic,
+  currentStep,
+  totalSteps,
+  previousTopic,
+  nextTopic,
   canEdit,
   canDelete,
   onBack,
+  onNavigateTopic,
   onEdit,
   onDelete,
   children,
 }: {
   topic: TrainingTopic
+  currentStep: number
+  totalSteps: number
+  previousTopic: TrainingTopic | null
+  nextTopic: TrainingTopic | null
   canEdit: boolean
   canDelete: boolean
   onBack: () => void
+  onNavigateTopic: (topic: TrainingTopic) => void
   onEdit: () => void
   onDelete: () => void
   children: ReactNode
@@ -698,7 +739,9 @@ function TrainingDetail({
                 {topic.title}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Informacion de la capacitacion
+                {currentStep && totalSteps
+                  ? `Paso ${currentStep} de ${totalSteps}`
+                  : "Informacion de la capacitacion"}
               </p>
             </div>
             <div className="flex items-center gap-2">
@@ -734,6 +777,11 @@ function TrainingDetail({
           <div className="mb-4 flex flex-wrap items-center gap-2">
             <Badge variant="secondary">{getRoleLabel(topic.category)}</Badge>
             <Badge variant="outline">Orden {topic.order}</Badge>
+            {currentStep && totalSteps ? (
+              <Badge variant="outline">
+                Paso {currentStep} de {totalSteps}
+              </Badge>
+            ) : null}
             <Badge variant="outline" className="gap-1">
               <TypeIcon className="h-3 w-3" />
               {contentTypeLabels[topic.contentType]}
@@ -756,6 +804,43 @@ function TrainingDetail({
           <div className="mt-6 flex items-center gap-2 text-xs text-muted-foreground">
             <CalendarClock className="h-3.5 w-3.5" />
             Actualizado {topic.updatedAt}
+          </div>
+
+          <div className="mt-8 grid gap-3 border-t border-border pt-5 sm:grid-cols-2">
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => previousTopic && onNavigateTopic(previousTopic)}
+              disabled={!previousTopic}
+              className="h-auto justify-start gap-3 px-4 py-3 text-left"
+            >
+              <ArrowLeft className="h-4 w-4 flex-shrink-0" />
+              <span className="min-w-0">
+                <span className="block text-xs text-muted-foreground">
+                  Paso anterior
+                </span>
+                <span className="block truncate">
+                  {previousTopic?.title ?? "Inicio de la ruta"}
+                </span>
+              </span>
+            </Button>
+
+            <Button
+              type="button"
+              onClick={() => nextTopic && onNavigateTopic(nextTopic)}
+              disabled={!nextTopic}
+              className="h-auto justify-between gap-3 px-4 py-3 text-left"
+            >
+              <span className="min-w-0">
+                <span className="block text-xs opacity-80">
+                  Siguiente paso
+                </span>
+                <span className="block truncate">
+                  {nextTopic?.title ?? "Fin de la ruta"}
+                </span>
+              </span>
+              <ArrowRight className="h-4 w-4 flex-shrink-0" />
+            </Button>
           </div>
         </section>
 
