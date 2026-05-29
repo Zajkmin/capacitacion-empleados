@@ -23,6 +23,7 @@ import {
   Search,
   Trash2,
   X,
+  ZoomIn,
 } from "lucide-react"
 
 import { Badge } from "@/components/ui/badge"
@@ -537,7 +538,19 @@ export function Training({ user, onBack }: TrainingProps) {
   )
 }
 
-function TrainingMedia({ topic }: { topic: TrainingTopic }) {
+type TrainingPreview = {
+  title: string
+  contentType: TrainingContentType
+  mediaUrl: string
+}
+
+function TrainingMedia({
+  topic,
+  onPreview,
+}: {
+  topic: TrainingTopic
+  onPreview: (preview: TrainingPreview) => void
+}) {
   if (!topic.mediaUrl) {
     return (
       <div className="flex min-h-32 items-center justify-center rounded-lg border border-dashed border-border bg-muted/30 text-sm text-muted-foreground">
@@ -548,34 +561,59 @@ function TrainingMedia({ topic }: { topic: TrainingTopic }) {
 
   if (topic.contentType === "photo") {
     return (
-      <img
-        src={topic.mediaUrl}
-        alt=""
-        className="aspect-video w-full rounded-lg object-cover"
-      />
+      <button
+        type="button"
+        onClick={() =>
+          onPreview({
+            title: topic.title,
+            contentType: topic.contentType,
+            mediaUrl: topic.mediaUrl!,
+          })
+        }
+        className="group relative block w-full overflow-hidden rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+      >
+        <img
+          src={topic.mediaUrl}
+          alt=""
+          className="aspect-video w-full object-cover transition-transform group-hover:scale-[1.02]"
+        />
+        <span className="absolute right-3 top-3 rounded-lg bg-black/60 p-2 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus:opacity-100">
+          <ZoomIn className="h-4 w-4" />
+        </span>
+      </button>
     )
   }
 
   if (topic.contentType === "video") {
     return (
-      <a
-        href={topic.mediaUrl}
-        target="_blank"
-        rel="noreferrer"
+      <button
+        type="button"
+        onClick={() =>
+          onPreview({
+            title: topic.title,
+            contentType: topic.contentType,
+            mediaUrl: topic.mediaUrl!,
+          })
+        }
         className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"
       >
         <PlayCircle className="h-5 w-5 text-primary" />
-        Abrir video
-      </a>
+        Ver video
+      </button>
     )
   }
 
   if (topic.contentType === "link" || topic.contentType === "pdf") {
     return (
-      <a
-        href={topic.mediaUrl}
-        target="_blank"
-        rel="noreferrer"
+      <button
+        type="button"
+        onClick={() =>
+          onPreview({
+            title: topic.title,
+            contentType: topic.contentType,
+            mediaUrl: topic.mediaUrl!,
+          })
+        }
         className="flex min-h-32 items-center justify-center gap-2 rounded-lg border border-border bg-secondary text-sm font-medium text-foreground transition-colors hover:bg-secondary/80"
       >
         {topic.contentType === "pdf" ? (
@@ -583,8 +621,8 @@ function TrainingMedia({ topic }: { topic: TrainingTopic }) {
         ) : (
           <LinkIcon className="h-5 w-5 text-primary" />
         )}
-        Abrir recurso
-      </a>
+        Ver recurso
+      </button>
     )
   }
 
@@ -721,6 +759,11 @@ function TrainingDetail({
   children: ReactNode
 }) {
   const TypeIcon = contentTypeIcons[topic.contentType]
+  const [preview, setPreview] = useState<TrainingPreview | null>(null)
+
+  useEffect(() => {
+    setPreview(null)
+  }, [topic.id])
 
   return (
     <div className="min-h-screen pb-24 lg:pb-8">
@@ -845,11 +888,100 @@ function TrainingDetail({
         </section>
 
         <aside className="rounded-lg border border-border bg-card p-4">
-          <TrainingMedia topic={topic} />
+          <TrainingMedia topic={topic} onPreview={setPreview} />
         </aside>
       </main>
 
+      <TrainingPreviewModal
+        preview={preview}
+        onClose={() => setPreview(null)}
+      />
       {children}
+    </div>
+  )
+}
+
+function TrainingPreviewModal({
+  preview,
+  onClose,
+}: {
+  preview: TrainingPreview | null
+  onClose: () => void
+}) {
+  if (!preview) return null
+
+  const isPhoto = preview.contentType === "photo"
+  const isVideo = preview.contentType === "video"
+  const isPdf = preview.contentType === "pdf"
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 p-4">
+      <button
+        type="button"
+        className="absolute inset-0 cursor-zoom-out"
+        onClick={onClose}
+        aria-label="Cerrar vista ampliada"
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96 }}
+        animate={{ opacity: 1, scale: 1 }}
+        className="relative flex max-h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-lg border border-white/10 bg-background shadow-2xl"
+      >
+        <div className="flex items-center justify-between gap-4 border-b border-border p-4">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-primary">
+              {isPhoto
+                ? "Imagen"
+                : isVideo
+                  ? "Video"
+                  : isPdf
+                    ? "PDF"
+                    : "Recurso"}
+            </p>
+            <h3 className="truncate text-lg font-semibold text-foreground">
+              {preview.title}
+            </h3>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button asChild type="button" variant="outline" size="sm">
+              <a href={preview.mediaUrl} target="_blank" rel="noreferrer">
+                Abrir
+              </a>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={onClose}
+              aria-label="Cerrar"
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          </div>
+        </div>
+
+        <div className="flex min-h-0 flex-1 items-center justify-center bg-black p-3">
+          {isPhoto ? (
+            <img
+              src={preview.mediaUrl}
+              alt={preview.title}
+              className="max-h-[78vh] max-w-full object-contain"
+            />
+          ) : isVideo ? (
+            <video
+              src={preview.mediaUrl}
+              controls
+              className="max-h-[78vh] w-full max-w-5xl rounded-md bg-black"
+            />
+          ) : (
+            <iframe
+              src={preview.mediaUrl}
+              title={preview.title}
+              className="h-[78vh] w-full rounded-md border-0 bg-white"
+            />
+          )}
+        </div>
+      </motion.div>
     </div>
   )
 }
