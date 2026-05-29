@@ -37,8 +37,13 @@ import {
 import {
   createProfileUser,
   listProfiles,
+  saveUserProjectAssignments,
   updateProfile,
 } from "@/lib/supabase/profiles"
+import {
+  listProjectGroupsWithProjects,
+  type ProjectGroupRecord,
+} from "@/lib/supabase/projects"
 
 interface AdminPanelProps {
   onBack: () => void
@@ -82,6 +87,7 @@ function formatPermission(permission: Permission) {
 export function AdminPanel({ onBack }: AdminPanelProps) {
   const [users, setUsers] = useState<User[]>([])
   const [roles, setRoles] = useState<RoleConfig[]>(initialRoles)
+  const [projectGroups, setProjectGroups] = useState<ProjectGroupRecord[]>([])
   const [activeTab, setActiveTab] = useState<"users" | "roles">("users")
   const [isLoadingUsers, setIsLoadingUsers] = useState(true)
   const [isLoadingRoles, setIsLoadingRoles] = useState(true)
@@ -97,6 +103,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   const [temporaryPassword, setTemporaryPassword] = useState("")
   const [selectedRole, setSelectedRole] = useState<UserRole>("supervisor")
   const [selectedExtraPermissions, setSelectedExtraPermissions] = useState<Permission[]>([])
+  const [selectedProjectIds, setSelectedProjectIds] = useState<string[]>([])
   const [showRoleModal, setShowRoleModal] = useState(false)
   const [roleModalMode, setRoleModalMode] = useState<ModalMode>("create")
   const [editingRole, setEditingRole] = useState<RoleConfig | null>(null)
@@ -113,11 +120,12 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
   useEffect(() => {
     let isMounted = true
 
-    Promise.all([listProfiles(), listRoles()])
-      .then(([profiles, storedRoles]) => {
+    Promise.all([listProfiles(), listRoles(), listProjectGroupsWithProjects()])
+      .then(([profiles, storedRoles, storedProjectGroups]) => {
         if (!isMounted) return
         setUsers(profiles)
         setRoles(storedRoles.length ? storedRoles : initialRoles)
+        setProjectGroups(storedProjectGroups)
       })
       .catch((error) => {
         if (!isMounted) return
@@ -160,6 +168,14 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     )
   }
 
+  const toggleProjectAssignment = (projectId: string) => {
+    setSelectedProjectIds((currentIds) =>
+      currentIds.includes(projectId)
+        ? currentIds.filter((id) => id !== projectId)
+        : [...currentIds, projectId],
+    )
+  }
+
   const openCreateUser = () => {
     setUserError("")
     setUserModalMode("create")
@@ -169,6 +185,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     setTemporaryPassword("")
     setSelectedRole("encuestador")
     setSelectedExtraPermissions([])
+    setSelectedProjectIds([])
     setShowUserModal(true)
   }
 
@@ -187,6 +204,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
     setTemporaryPassword("")
     setSelectedRole(user.role)
     setSelectedExtraPermissions(user.extraPermissions ?? [])
+    setSelectedProjectIds(user.assignedProjectIds ?? [])
     setShowUserModal(true)
   }
 
@@ -211,8 +229,15 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
           extraPermissions:
             selectedRole === "admin" ? [] : selectedExtraPermissions,
         })
+        const assignedProjectIds = await saveUserProjectAssignments({
+          userId: createdUser.id,
+          projectIds: selectedRole === "admin" ? [] : selectedProjectIds,
+        })
 
-        setUsers((currentUsers) => [createdUser, ...currentUsers])
+        setUsers((currentUsers) => [
+          { ...createdUser, assignedProjectIds },
+          ...currentUsers,
+        ])
       } else if (editingUser) {
         const savedUser = await updateProfile({
           id: editingUser.id,
@@ -221,10 +246,16 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
           extraPermissions:
             selectedRole === "admin" ? [] : selectedExtraPermissions,
         })
+        const assignedProjectIds = await saveUserProjectAssignments({
+          userId: savedUser.id,
+          projectIds: selectedRole === "admin" ? [] : selectedProjectIds,
+        })
 
         setUsers((currentUsers) =>
           currentUsers.map((user) =>
-            user.id === savedUser.id ? savedUser : user,
+            user.id === savedUser.id
+              ? { ...savedUser, assignedProjectIds }
+              : user,
           ),
         )
       }
@@ -481,6 +512,11 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                               +{user.extraPermissions.length} permisos extra
                             </span>
                           ) : null}
+                          {user.role !== "admin" ? (
+                            <span className="rounded-full border border-cyan-500/30 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-600">
+                              {user.assignedProjectIds?.length ?? 0} proyectos
+                            </span>
+                          ) : null}
                           <span className="text-xs text-muted-foreground">
                             Desde {user.createdAt}
                           </span>
@@ -719,6 +755,48 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
                 })}
               </div>
             </div>
+
+            {selectedRole !== "admin" ? (
+              <div className="mb-6">
+                <div className="mb-3 flex items-center gap-2">
+                  <Grid3x3 className="h-4 w-4 text-primary" />
+                  <p className="text-sm font-medium text-foreground">
+                    Proyectos asignados
+                  </p>
+                </div>
+                <div className="max-h-64 space-y-3 overflow-y-auto rounded-lg border border-border bg-background p-3">
+                  {projectGroups.length ? (
+                    projectGroups.map((group) => (
+                      <div key={group.id} className="grid gap-2">
+                        <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+                          {group.name}
+                        </p>
+                        <div className="grid gap-2 sm:grid-cols-2">
+                          {group.projects.map((project) => (
+                            <label
+                              key={project.id}
+                              className="flex items-center gap-3 rounded-lg border border-border bg-card p-3 text-sm"
+                            >
+                              <input
+                                type="checkbox"
+                                checked={selectedProjectIds.includes(project.id)}
+                                onChange={() => toggleProjectAssignment(project.id)}
+                                className="h-4 w-4"
+                              />
+                              <span className="truncate">{project.name}</span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      No hay proyectos disponibles para asignar.
+                    </p>
+                  )}
+                </div>
+              </div>
+            ) : null}
 
             <div className="flex gap-3">
               <Button

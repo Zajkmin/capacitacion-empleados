@@ -10,6 +10,7 @@ function mapProfileToUser(profile: {
   role: string
   extra_permissions: string[]
   created_at: string
+  project_assignments?: Array<{ project_id: string }>
 }): User {
   return {
     id: profile.id,
@@ -18,6 +19,7 @@ function mapProfileToUser(profile: {
     role: profile.role as UserRole,
     createdAt: profile.created_at.split("T")[0],
     extraPermissions: profile.extra_permissions as Permission[],
+    assignedProjectIds: profile.project_assignments?.map((item) => item.project_id) ?? [],
   }
 }
 
@@ -25,7 +27,7 @@ export async function listProfiles() {
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, extra_permissions, created_at")
+    .select("id, name, email, role, extra_permissions, created_at, project_assignments(project_id)")
     .order("created_at", { ascending: false })
 
   if (error) {
@@ -50,7 +52,7 @@ export async function updateProfile(input: {
       extra_permissions: input.extraPermissions,
     })
     .eq("id", input.id)
-    .select("id, name, email, role, extra_permissions, created_at")
+    .select("id, name, email, role, extra_permissions, created_at, project_assignments(project_id)")
     .single()
 
   if (error) {
@@ -58,6 +60,42 @@ export async function updateProfile(input: {
   }
 
   return mapProfileToUser(data)
+}
+
+export async function saveUserProjectAssignments(input: {
+  userId: string
+  projectIds: string[]
+  assignedBy?: string
+}) {
+  const supabase = getSupabaseBrowserClient()
+
+  const { error: deleteError } = await supabase
+    .from("project_assignments")
+    .delete()
+    .eq("user_id", input.userId)
+
+  if (deleteError) {
+    throw new Error(deleteError.message)
+  }
+
+  if (!input.projectIds.length) return []
+
+  const { data, error } = await supabase
+    .from("project_assignments")
+    .insert(
+      input.projectIds.map((projectId) => ({
+        user_id: input.userId,
+        project_id: projectId,
+        assigned_by: input.assignedBy ?? null,
+      })),
+    )
+    .select("project_id")
+
+  if (error) {
+    throw new Error(error.message)
+  }
+
+  return data.map((item) => item.project_id)
 }
 
 export async function createProfileUser(input: {

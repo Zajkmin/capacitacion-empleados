@@ -171,4 +171,5 @@ export interface User {
   role: UserRole
   createdAt: string
   extraPermissions?: Permission[]
+  assignedProjectIds?: string[]
 }

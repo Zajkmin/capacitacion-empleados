@@ -55,6 +55,14 @@ create table if not exists public.projects (
   updated_at timestamptz not null default now()
 );
 
+create table if not exists public.project_assignments (
+  user_id uuid not null references auth.users(id) on delete cascade,
+  project_id uuid not null references public.projects(id) on delete cascade,
+  assigned_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz not null default now(),
+  primary key (user_id, project_id)
+);
+
 do $$
 begin
   if exists (
@@ -379,6 +387,7 @@ alter table public.profiles enable row level security;
 alter table public.roles enable row level security;
 alter table public.project_groups enable row level security;
 alter table public.projects enable row level security;
+alter table public.project_assignments enable row level security;
 alter table public.project_sections enable row level security;
 alter table public.section_items enable row level security;
 alter table public.training_topics enable row level security;
@@ -406,6 +415,23 @@ as $$
   from public.profiles p
   left join public.roles r on r.id = p.role
   where p.id = auth.uid();
+$$;
+
+create or replace function public.user_has_project_access(project_uuid uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select
+    public.current_user_role() = 'admin'
+    or exists (
+      select 1
+      from public.project_assignments pa
+      where pa.project_id = project_uuid
+        and pa.user_id = auth.uid()
+    );
 $$;
 
 drop policy if exists "Users can read their own profile" on public.profiles;
@@ -473,7 +499,15 @@ create policy "Authenticated users can read project groups"
 on public.project_groups
 for select
 to authenticated
-using (true);
+using (
+  public.current_user_role() = 'admin'
+  or exists (
+    select 1
+    from public.projects p
+    where p.group_id = project_groups.id
+      and public.user_has_project_access(p.id)
+  )
+);
 
 drop policy if exists "Admins can manage project groups" on public.project_groups;
 create policy "Admins can manage project groups"
@@ -484,11 +518,12 @@ using (public.current_user_role() = 'admin')
 with check (public.current_user_role() = 'admin');
 
 drop policy if exists "Authenticated users can read projects" on public.projects;
-create policy "Authenticated users can read projects"
+drop policy if exists "Users can read assigned projects" on public.projects;
+create policy "Users can read assigned projects"
 on public.projects
 for select
 to authenticated
-using (true);
+using (public.user_has_project_access(id));
 
 drop policy if exists "Admins can manage projects" on public.projects;
 create policy "Admins can manage projects"
@@ -498,12 +533,27 @@ to authenticated
 using (public.current_user_role() = 'admin')
 with check (public.current_user_role() = 'admin');
 
+drop policy if exists "Admins can manage project assignments" on public.project_assignments;
+create policy "Admins can manage project assignments"
+on public.project_assignments
+for all
+to authenticated
+using (public.current_user_role() = 'admin')
+with check (public.current_user_role() = 'admin');
+
+drop policy if exists "Users can read their project assignments" on public.project_assignments;
+create policy "Users can read their project assignments"
+on public.project_assignments
+for select
+to authenticated
+using (auth.uid() = user_id);
+
 drop policy if exists "Authenticated users can read project sections" on public.project_sections;
 create policy "Authenticated users can read project sections"
 on public.project_sections
 for select
 to authenticated
-using (true);
+using (public.user_has_project_access(project_id));
 
 drop policy if exists "Users with add_section can insert project sections" on public.project_sections;
 create policy "Users with add_section can insert project sections"
@@ -512,7 +562,10 @@ for insert
 to authenticated
 with check (
   public.current_user_role() = 'admin'
-  or 'add_section' = any(public.current_user_permissions())
+  or (
+    'add_section' = any(public.current_user_permissions())
+    and public.user_has_project_access(project_id)
+  )
 );
 
 drop policy if exists "Users with edit_section can update project sections" on public.project_sections;
@@ -522,11 +575,17 @@ for update
 to authenticated
 using (
   public.current_user_role() = 'admin'
-  or 'edit_section' = any(public.current_user_permissions())
+  or (
+    'edit_section' = any(public.current_user_permissions())
+    and public.user_has_project_access(project_id)
+  )
 )
 with check (
   public.current_user_role() = 'admin'
-  or 'edit_section' = any(public.current_user_permissions())
+  or (
+    'edit_section' = any(public.current_user_permissions())
+    and public.user_has_project_access(project_id)
+  )
 );
 
 drop policy if exists "Users with delete_section can delete project sections" on public.project_sections;
@@ -536,7 +595,10 @@ for delete
 to authenticated
 using (
   public.current_user_role() = 'admin'
-  or 'delete_section' = any(public.current_user_permissions())
+  or (
+    'delete_section' = any(public.current_user_permissions())
+    and public.user_has_project_access(project_id)
+  )
 );
 
 drop policy if exists "Authenticated users can read section items" on public.section_items;
@@ -544,7 +606,14 @@ create policy "Authenticated users can read section items"
 on public.section_items
 for select
 to authenticated
-using (true);
+using (
+  exists (
+    select 1
+    from public.project_sections ps
+    where ps.id = section_items.section_id
+      and public.user_has_project_access(ps.project_id)
+  )
+);
 
 drop policy if exists "Users with add_section can insert section items" on public.section_items;
 create policy "Users with add_section can insert section items"
@@ -553,7 +622,15 @@ for insert
 to authenticated
 with check (
   public.current_user_role() = 'admin'
-  or 'add_section' = any(public.current_user_permissions())
+  or (
+    'add_section' = any(public.current_user_permissions())
+    and exists (
+      select 1
+      from public.project_sections ps
+      where ps.id = section_items.section_id
+        and public.user_has_project_access(ps.project_id)
+    )
+  )
 );
 
 drop policy if exists "Users with edit_section can update section items" on public.section_items;
@@ -563,11 +640,27 @@ for update
 to authenticated
 using (
   public.current_user_role() = 'admin'
-  or 'edit_section' = any(public.current_user_permissions())
+  or (
+    'edit_section' = any(public.current_user_permissions())
+    and exists (
+      select 1
+      from public.project_sections ps
+      where ps.id = section_items.section_id
+        and public.user_has_project_access(ps.project_id)
+    )
+  )
 )
 with check (
   public.current_user_role() = 'admin'
-  or 'edit_section' = any(public.current_user_permissions())
+  or (
+    'edit_section' = any(public.current_user_permissions())
+    and exists (
+      select 1
+      from public.project_sections ps
+      where ps.id = section_items.section_id
+        and public.user_has_project_access(ps.project_id)
+    )
+  )
 );
 
 drop policy if exists "Users with delete_section can delete section items" on public.section_items;
@@ -577,7 +670,15 @@ for delete
 to authenticated
 using (
   public.current_user_role() = 'admin'
-  or 'delete_section' = any(public.current_user_permissions())
+  or (
+    'delete_section' = any(public.current_user_permissions())
+    and exists (
+      select 1
+      from public.project_sections ps
+      where ps.id = section_items.section_id
+        and public.user_has_project_access(ps.project_id)
+    )
+  )
 );
 
 drop policy if exists "Users can read visible training topics" on public.training_topics;
@@ -617,7 +718,9 @@ create policy "Authenticated users can read activity events"
 on public.activity_events
 for select
 to authenticated
-using (true);
+using (
+  public.user_has_project_access(project_id)
+);
 
 drop policy if exists "Content editors can insert activity events" on public.activity_events;
 create policy "Content editors can insert activity events"
@@ -626,9 +729,14 @@ for insert
 to authenticated
 with check (
   public.current_user_role() = 'admin'
-  or 'add_section' = any(public.current_user_permissions())
-  or 'edit_section' = any(public.current_user_permissions())
-  or 'delete_section' = any(public.current_user_permissions())
+  or (
+    public.user_has_project_access(project_id)
+    and (
+      'add_section' = any(public.current_user_permissions())
+      or 'edit_section' = any(public.current_user_permissions())
+      or 'delete_section' = any(public.current_user_permissions())
+    )
+  )
 );
 
 drop policy if exists "Users can read their notification state" on public.notification_reads;

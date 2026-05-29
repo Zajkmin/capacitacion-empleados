@@ -135,6 +135,27 @@ export interface Database {
         }
         Relationships: []
       }
+      project_assignments: {
+        Row: {
+          user_id: string
+          project_id: string
+          assigned_by: string | null
+          created_at: string
+        }
+        Insert: {
+          user_id: string
+          project_id: string
+          assigned_by?: string | null
+          created_at?: string
+        }
+        Update: {
+          user_id?: string
+          project_id?: string
+          assigned_by?: string | null
+          created_at?: string
+        }
+        Relationships: []
+      }
       project_sections: {
         Row: {
           id: string
