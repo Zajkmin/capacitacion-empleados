@@ -136,7 +136,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
       </div>
       
       {/* Main Content */}
-      <main className={`flex-1 min-h-screen transition-all duration-300 ${
+      <main className={`flex-1 min-h-screen pb-24 transition-all duration-300 lg:pb-0 ${
         sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[280px]"
       }`}>
         <AnimatePresence mode="wait">
@@ -158,6 +158,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
           onNavigate={setCurrentView}
           onLogout={onLogout}
           hasUnreadNotifications={hasUnreadNotifications}
+          canAccessAdmin={user.role === "admin"}
         />
       </main>
     </div>
