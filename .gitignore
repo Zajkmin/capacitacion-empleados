@@ -14,4 +14,5 @@ node_modules
 .next/
 .DS_Store
 
-#Todos fueron mis commits hasta ahora, todo hecho por Jazmin Irazusta jsjsj
+tsconfig.tsbuildinfo
+pnpm-lock.yaml
