@@ -138,7 +138,7 @@ export function ActivityFeed({
   const updatedCount = visibleActivities.length - newCount
 
   return (
-    <div className="space-y-4">
+    <div className="w-full min-w-0 space-y-4 overflow-x-hidden">
       {errorMessage ? (
         <div className="rounded-lg border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           {errorMessage}
@@ -146,16 +146,16 @@ export function ActivityFeed({
       ) : null}
 
       {showAttentionAlert && !isLoading && visibleActivities.length > 0 ? (
-        <div className="rounded-2xl border border-primary/30 bg-primary/10 p-4">
+        <div className="min-w-0 rounded-2xl border border-primary/30 bg-primary/10 p-4">
           <div className="flex items-start gap-3">
             <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-primary/15 text-primary">
               <Bell className="h-5 w-5" />
             </div>
-            <div className="min-w-0">
-              <p className="font-semibold text-foreground">
+            <div className="min-w-0 flex-1">
+              <p className="break-words font-semibold text-foreground">
                 Hay cambios que requieren atencion
               </p>
-              <p className="mt-1 text-sm text-muted-foreground">
+              <p className="mt-1 break-words text-sm text-muted-foreground">
                 {visibleActivities.length} notificacion
                 {visibleActivities.length === 1 ? "" : "es"} reciente
                 {visibleActivities.length === 1 ? "" : "s"}: {newCount} nuevo
@@ -168,13 +168,13 @@ export function ActivityFeed({
       ) : null}
 
       {filters.length > 1 ? (
-        <div className="flex gap-2 overflow-x-auto pb-1">
+        <div className="flex w-full min-w-0 gap-2 overflow-x-auto pb-1">
           {filters.map((type) => (
             <button
               key={type}
               type="button"
               onClick={() => setSelectedType(type)}
-              className={`rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
+              className={`flex-none whitespace-nowrap rounded-xl px-4 py-2 text-sm font-medium transition-colors ${
                 selectedType === type
                   ? "bg-primary text-primary-foreground"
                   : "border border-border bg-card text-muted-foreground hover:text-foreground"
@@ -187,19 +187,19 @@ export function ActivityFeed({
       ) : null}
 
       {isLoading ? (
-        <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
+        <div className="min-w-0 rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
           Cargando notificaciones...
         </div>
       ) : null}
 
       {!isLoading && filteredActivities.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
+        <div className="min-w-0 rounded-2xl border border-dashed border-border bg-card/40 p-8 text-center">
           <Bell className="mx-auto mb-3 h-12 w-12 text-muted-foreground/30" />
           <p className="text-sm text-muted-foreground">{emptyLabel}</p>
         </div>
       ) : null}
 
-      <div className="space-y-3">
+      <div className="min-w-0 space-y-3">
         {filteredActivities.map((activity, index) => {
           const config = typeConfig[activity.itemType] ?? {
             icon: FileImage,
@@ -211,34 +211,34 @@ export function ActivityFeed({
           return (
             <motion.article
               key={activity.id}
-              className="rounded-2xl border border-border bg-card p-5 shadow-sm"
+              className="min-w-0 overflow-hidden rounded-2xl border border-border bg-card p-4 shadow-sm sm:p-5"
               initial={{ opacity: 0, y: 12 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.04 }}
             >
-              <div className="flex items-start gap-4">
+              <div className="flex min-w-0 items-start gap-3 sm:gap-4">
                 <div className={`flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl ${config.color}`}>
                   <Icon className="h-5 w-5" />
                 </div>
 
                 <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <h3 className="font-semibold text-foreground">
+                  <div className="flex min-w-0 flex-col gap-1 sm:flex-row sm:flex-wrap sm:items-start sm:justify-between sm:gap-2">
+                    <h3 className="min-w-0 break-words font-semibold text-foreground">
                       {getActivityTitle(activity)}
                     </h3>
-                    <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <span className="inline-flex flex-shrink-0 items-center gap-1 text-xs text-muted-foreground">
                       <Clock className="h-3.5 w-3.5" />
                       {formatActivityDate(activity.occurredAt)}
                     </span>
                   </div>
-                  <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
+                  <p className="mt-1 break-words text-sm leading-relaxed text-muted-foreground">
                     {getActivityDescription(activity, showProject)}
                   </p>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <span className={`rounded-md px-2 py-1 text-xs font-medium ${config.color}`}>
+                  <div className="mt-3 flex min-w-0 flex-wrap gap-2">
+                    <span className={`max-w-full break-words rounded-md px-2 py-1 text-xs font-medium ${config.color}`}>
                       {config.label}
                     </span>
-                    <span className="rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
+                    <span className="max-w-full break-words rounded-md bg-secondary px-2 py-1 text-xs font-medium text-secondary-foreground">
                       {activity.action === "updated"
                         ? "Modificado"
                         : activity.action === "deleted"
@@ -246,7 +246,7 @@ export function ActivityFeed({
                           : "Nuevo"}
                     </span>
                     {activity.action === "created" ? (
-                      <span className="inline-flex items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success">
+                      <span className="inline-flex max-w-full items-center gap-1 rounded-md bg-success/10 px-2 py-1 text-xs font-medium text-success">
                         <CheckCircle2 className="h-3 w-3" />
                         Agregado
                       </span>

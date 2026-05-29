@@ -466,10 +466,13 @@ export function Training({ user, onBack }: TrainingProps) {
             </div>
 
             {selectedRoleTopics.length ? (
-              <div className="overflow-x-auto pb-4">
-                <div className="flex min-w-max items-stretch gap-3">
+              <div className="w-full min-w-0 overflow-hidden md:overflow-x-auto md:pb-4">
+                <div className="grid w-full min-w-0 gap-3 md:flex md:min-w-max md:items-stretch">
                   {selectedRoleTopics.map((topic, index) => (
-                    <div key={topic.id} className="flex items-center gap-3">
+                    <div
+                      key={topic.id}
+                      className="grid min-w-0 gap-2 md:flex md:items-center md:gap-3"
+                    >
                       <TrainingStepCard
                         topic={topic}
                         stepNumber={index + 1}
@@ -480,7 +483,7 @@ export function Training({ user, onBack }: TrainingProps) {
                         onDelete={() => handleDeleteTopic(topic.id)}
                       />
                       {index < selectedRoleTopics.length - 1 ? (
-                        <ArrowRight className="h-6 w-6 flex-none text-muted-foreground" />
+                        <ArrowRight className="hidden h-6 w-6 flex-none text-muted-foreground md:block" />
                       ) : null}
                     </div>
                   ))}
@@ -654,7 +657,7 @@ function TrainingStepCard({
 
   return (
     <motion.article
-      className="group relative aspect-square w-72 rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/50"
+      className="group relative min-h-48 w-full min-w-0 rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/50 md:aspect-square md:w-72"
       initial={{ opacity: 0, y: 14 }}
       animate={{ opacity: 1, y: 0 }}
     >
@@ -688,7 +691,7 @@ function TrainingStepCard({
 
         <div
           className={`mt-auto flex items-center justify-between gap-3 border-t border-border pt-4 ${
-            canEdit || canDelete ? "pr-20" : ""
+            canEdit || canDelete ? "pr-20 md:pr-20" : ""
           }`}
         >
           <span className="text-xs text-muted-foreground">
