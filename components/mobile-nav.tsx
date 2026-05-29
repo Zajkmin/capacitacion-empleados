@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   Lock,
   LogOut,
+  Search,
   User,
 } from "lucide-react"
 import type { ViewType } from "@/components/dashboard-layout"
@@ -16,6 +17,7 @@ interface MobileNavProps {
   onLogout: () => void
   hasUnreadNotifications?: boolean
   canAccessAdmin?: boolean
+  onOpenSearch?: () => void
 }
 
 const navItems = [
@@ -31,11 +33,12 @@ export function MobileNav({
   onLogout,
   hasUnreadNotifications,
   canAccessAdmin = false,
+  onOpenSearch,
 }: MobileNavProps) {
   const visibleNavItems = canAccessAdmin
     ? [...navItems, { id: "admin" as ViewType, icon: Lock, label: "Admin" }]
     : navItems
-  const totalItems = visibleNavItems.length + 1
+  const totalItems = visibleNavItems.length + 2
 
   return (
     <nav className="fixed inset-x-0 bottom-0 z-50 border-t border-border bg-secondary/95 px-2 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur-lg lg:hidden">
@@ -75,6 +78,19 @@ export function MobileNav({
             </button>
           )
         })}
+
+        <button
+          type="button"
+          onClick={onOpenSearch}
+          className="relative flex min-w-0 flex-col items-center gap-1 rounded-xl px-1 py-2 text-muted-foreground transition-all duration-200 hover:text-primary"
+        >
+          <span className="flex h-5 w-5 items-center justify-center">
+            <Search className="h-5 w-5" />
+          </span>
+          <span className="max-w-full truncate text-[10px] font-medium leading-none">
+            Buscar
+          </span>
+        </button>
 
         <button
           type="button"

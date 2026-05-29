@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   BookOpen,
   Bell,
+  Search,
   Settings,
   LogOut,
   User,
@@ -22,6 +23,7 @@ interface SidebarProps {
   collapsed: boolean
   onToggleCollapse: () => void
   hasUnreadNotifications?: boolean
+  onOpenSearch?: () => void
 }
 
 const navItems = [
@@ -40,6 +42,7 @@ export function Sidebar({
   collapsed,
   onToggleCollapse,
   hasUnreadNotifications,
+  onOpenSearch,
 }: SidebarProps) {
   return (
     <motion.aside
@@ -82,6 +85,25 @@ export function Sidebar({
       {/* Navigation */}
       <nav className="flex-1 p-3 overflow-y-auto">
         <ul className="space-y-1">
+          <li>
+            <button
+              onClick={onOpenSearch}
+              className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl text-muted-foreground transition-all duration-200 hover:bg-accent/50 hover:text-foreground ${
+                collapsed ? "justify-center" : ""
+              }`}
+            >
+              <Search className="h-5 w-5" />
+              {!collapsed && (
+                <motion.span
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="text-sm font-medium whitespace-nowrap"
+                >
+                  Buscar
+                </motion.span>
+              )}
+            </button>
+          </li>
           {navItems.map((item) => {
             // Si el item es solo para admins, verificar permisos
             if ((item as any).adminOnly && user.role !== "admin") {

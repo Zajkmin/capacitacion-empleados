@@ -10,7 +10,9 @@ import { Updates } from "@/components/updates"
 import { Profile } from "@/components/profile"
 import { AdminPanel } from "@/components/admin-panel"
 import { MobileNav } from "@/components/mobile-nav"
+import { GlobalSearch } from "@/components/global-search"
 import { type Permission, type UserRole } from "@/lib/roles-permissions"
+import type { GlobalSearchResult } from "@/lib/supabase/search"
 import {
   getLatestActivityTime,
   getNotificationSeenAt,
@@ -79,6 +81,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
   const [selectedSection, setSelectedSection] = useState<string | null>(null)
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
+  const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
   const isNavigatingHistory = useRef(false)
 
   const applyNavigationState = (state: NavigationState) => {
@@ -182,6 +185,19 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
     navigateTo({ view: "project", projectId: selectedProject }, "replace")
   }
 
+  const handleGlobalSearchResult = (result: GlobalSearchResult) => {
+    if (!result.projectId || !result.sectionId) {
+      if (result.type === "training") navigateTo({ view: "training" })
+      return
+    }
+
+    navigateTo({
+      view: "project",
+      projectId: result.projectId,
+      sectionId: result.sectionId,
+    })
+  }
+
   const renderView = () => {
     switch (currentView) {
       case "dashboard":
@@ -229,6 +245,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
           collapsed={sidebarCollapsed}
           onToggleCollapse={() => setSidebarCollapsed(!sidebarCollapsed)}
           hasUnreadNotifications={hasUnreadNotifications}
+          onOpenSearch={() => setIsGlobalSearchOpen(true)}
         />
       </div>
       
@@ -256,8 +273,16 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
           onLogout={onLogout}
           hasUnreadNotifications={hasUnreadNotifications}
           canAccessAdmin={user.role === "admin"}
+          onOpenSearch={() => setIsGlobalSearchOpen(true)}
         />
       </main>
+
+      <GlobalSearch
+        isOpen={isGlobalSearchOpen}
+        userRole={user.role}
+        onClose={() => setIsGlobalSearchOpen(false)}
+        onNavigateToResult={handleGlobalSearchResult}
+      />
     </div>
   )
 }
