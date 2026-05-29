@@ -10,7 +10,7 @@ function mapProfileToUser(profile: {
   role: string
   extra_permissions: string[]
   created_at: string
-  project_assignments?: Array<{ project_id: string }>
+  assignedProjectIds?: string[]
 }): User {
   return {
     id: profile.id,
@@ -19,7 +19,7 @@ function mapProfileToUser(profile: {
     role: profile.role as UserRole,
     createdAt: profile.created_at.split("T")[0],
     extraPermissions: profile.extra_permissions as Permission[],
-    assignedProjectIds: profile.project_assignments?.map((item) => item.project_id) ?? [],
+    assignedProjectIds: profile.assignedProjectIds ?? [],
   }
 }
 
@@ -27,14 +27,36 @@ export async function listProfiles() {
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("profiles")
-    .select("id, name, email, role, extra_permissions, created_at, project_assignments(project_id)")
+    .select("id, name, email, role, extra_permissions, created_at")
     .order("created_at", { ascending: false })
 
   if (error) {
     throw new Error(error.message)
   }
 
-  return data.map(mapProfileToUser)
+  const { data: assignments, error: assignmentsError } = await supabase
+    .from("project_assignments")
+    .select("user_id, project_id")
+
+  if (assignmentsError) {
+    throw new Error(assignmentsError.message)
+  }
+
+  const assignmentsByUser = new Map<string, string[]>()
+  assignments.forEach((assignment) => {
+    const currentIds = assignmentsByUser.get(assignment.user_id) ?? []
+    assignmentsByUser.set(assignment.user_id, [
+      ...currentIds,
+      assignment.project_id,
+    ])
+  })
+
+  return data.map((profile) =>
+    mapProfileToUser({
+      ...profile,
+      assignedProjectIds: assignmentsByUser.get(profile.id) ?? [],
+    }),
+  )
 }
 
 export async function updateProfile(input: {
@@ -52,7 +74,7 @@ export async function updateProfile(input: {
       extra_permissions: input.extraPermissions,
     })
     .eq("id", input.id)
-    .select("id, name, email, role, extra_permissions, created_at, project_assignments(project_id)")
+    .select("id, name, email, role, extra_permissions, created_at")
     .single()
 
   if (error) {

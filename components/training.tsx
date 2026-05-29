@@ -11,8 +11,10 @@ import {
 import { motion } from "framer-motion"
 import {
   ArrowLeft,
+  ArrowRight,
   CalendarClock,
   FileText,
+  GraduationCap,
   ImagePlus,
   LinkIcon,
   Pencil,
@@ -93,10 +95,15 @@ function sortTopics(topics: TrainingTopic[]) {
 export function Training({ user, onBack }: TrainingProps) {
   const [topics, setTopics] = useState<TrainingTopic[]>([])
   const [query, setQuery] = useState("")
-  const [categoryFilter, setCategoryFilter] = useState<UserRole | "general" | "all">("all")
+  const [selectedRoleView, setSelectedRoleView] = useState<UserRole | "general" | null>(null)
   const [editingTopic, setEditingTopic] = useState<TrainingTopic | null>(null)
   const [selectedTopic, setSelectedTopic] = useState<TrainingTopic | null>(null)
   const [isModalOpen, setIsModalOpen] = useState(false)
+  const [modalDefaults, setModalDefaults] = useState<{
+    category: UserRole | "general"
+    visibleTo: UserRole[]
+    order: number
+  } | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isSaving, setIsSaving] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
@@ -132,28 +139,75 @@ export function Training({ user, onBack }: TrainingProps) {
   }, [])
 
   const visibleTopics = useMemo(() => {
-    const normalizedQuery = query.trim().toLowerCase()
-
     return sortTopics(
       topics.filter((topic) => {
         const roleCanSee =
           user.role === "admin" || topic.visibleTo.includes(user.role)
-        const matchesCategory =
-          categoryFilter === "all" || topic.category === categoryFilter
+
+        return roleCanSee
+      }),
+    )
+  }, [topics, user.role])
+
+  const roleCards = useMemo(() => {
+    const baseCards =
+      user.role === "admin"
+        ? [...roleOptions]
+        : roleOptions.filter((role) => role === user.role)
+    const hasGeneralTopics = visibleTopics.some((topic) => topic.category === "general")
+
+    return [
+      ...baseCards,
+      ...(hasGeneralTopics || user.role === "admin" ? (["general"] as const) : []),
+    ]
+  }, [user.role, visibleTopics])
+
+  const selectedRoleTopics = useMemo(() => {
+    if (!selectedRoleView) return []
+
+    const normalizedQuery = query.trim().toLowerCase()
+
+    return sortTopics(
+      visibleTopics.filter((topic) => {
+        const matchesRole = topic.category === selectedRoleView
         const matchesQuery =
           !normalizedQuery ||
           topic.title.toLowerCase().includes(normalizedQuery) ||
           topic.summary.toLowerCase().includes(normalizedQuery) ||
           topic.body.toLowerCase().includes(normalizedQuery)
 
-        return roleCanSee && matchesCategory && matchesQuery
+        return matchesRole && matchesQuery
       }),
     )
-  }, [categoryFilter, query, topics, user.role])
+  }, [query, selectedRoleView, visibleTopics])
 
   const handleCreate = () => {
     if (!canAdd) return
+    const category = selectedRoleView ?? "general"
+    const defaultVisibleTo =
+      category === "general" ? [...roleOptions] : [category]
+    const nextOrder =
+      topics.filter((topic) => topic.category === category).length + 1
+
     setEditingTopic(null)
+    setModalDefaults({
+      category,
+      visibleTo: defaultVisibleTo,
+      order: nextOrder,
+    })
+    setIsModalOpen(true)
+  }
+
+  const handleEditTopic = async (topic: TrainingTopic) => {
+    if (!canEdit) return
+    const confirmed = await confirmAction({
+      title: "Editar tema",
+      description: `Vas a modificar "${topic.title}".`,
+      confirmLabel: "Editar",
+    })
+    if (!confirmed) return
+    setEditingTopic(topic)
+    setModalDefaults(null)
     setIsModalOpen(true)
   }
 
@@ -198,6 +252,7 @@ export function Training({ user, onBack }: TrainingProps) {
 
       setIsModalOpen(false)
       setEditingTopic(null)
+      setModalDefaults(null)
     } catch (error) {
       setErrorMessage(
         error instanceof Error ? error.message : "No se pudo guardar la capacitacion.",
@@ -242,24 +297,17 @@ export function Training({ user, onBack }: TrainingProps) {
         canEdit={canEdit}
         canDelete={canDelete}
         onBack={() => setSelectedTopic(null)}
-        onEdit={async () => {
-          const confirmed = await confirmAction({
-            title: "Editar tema",
-            description: `Vas a modificar "${selectedTopic.title}".`,
-            confirmLabel: "Editar",
-          })
-          if (!confirmed) return
-          setEditingTopic(selectedTopic)
-          setIsModalOpen(true)
-        }}
+        onEdit={() => handleEditTopic(selectedTopic)}
         onDelete={() => handleDeleteTopic(selectedTopic.id)}
       >
         <TrainingTopicModal
           isOpen={isModalOpen}
           topic={editingTopic}
+          defaults={modalDefaults}
           onClose={() => {
             setIsModalOpen(false)
             setEditingTopic(null)
+            setModalDefaults(null)
           }}
           onSave={handleSaveTopic}
           isSaving={isSaving}
@@ -283,16 +331,18 @@ export function Training({ user, onBack }: TrainingProps) {
             </button>
             <div className="min-w-0 flex-1">
               <h1 className="text-lg font-bold text-foreground">
-                Capacitacion
+                {selectedRoleView ? getRoleLabel(selectedRoleView) : "Capacitacion"}
               </h1>
               <p className="text-sm text-muted-foreground">
-                Temas, guias y recursos visibles segun rol
+                {selectedRoleView
+                  ? "Ruta de pasos de capacitacion"
+                  : "Contenido organizado por rol"}
               </p>
             </div>
-            {canAdd ? (
+            {selectedRoleView && canAdd ? (
               <Button onClick={handleCreate} className="gap-2">
                 <Plus className="h-4 w-4" />
-                Nuevo tema
+                Nuevo paso
               </Button>
             ) : null}
           </div>
@@ -306,157 +356,134 @@ export function Training({ user, onBack }: TrainingProps) {
           </div>
         ) : null}
 
-        <section className="grid gap-3 rounded-lg border border-border bg-card/50 p-4 md:grid-cols-[1fr_220px]">
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              value={query}
-              onChange={(event) => setQuery(event.target.value)}
-              className="pl-9"
-              placeholder="Buscar por titulo, resumen o contenido"
-            />
-          </div>
-          <Select
-            value={categoryFilter}
-            onValueChange={(value) =>
-              setCategoryFilter(value as UserRole | "general" | "all")
-            }
-          >
-            <SelectTrigger>
-              <SelectValue placeholder="Categoria" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Todas las categorias</SelectItem>
-              <SelectItem value="general">General</SelectItem>
-              {roleOptions.map((role) => (
-                <SelectItem key={role} value={role}>
-                  {getRoleLabel(role)}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-        </section>
-
         {isLoading ? (
           <div className="rounded-xl border border-border bg-card/50 p-6 text-sm text-muted-foreground">
             Cargando capacitaciones...
           </div>
         ) : null}
 
-        {!isLoading && visibleTopics.length ? (
-          <div className="grid gap-4">
-            {visibleTopics.map((topic, index) => {
-              const TypeIcon = contentTypeIcons[topic.contentType]
+        {!isLoading && !selectedRoleView ? (
+          <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+            {roleCards.map((role, index) => {
+              const count = visibleTopics.filter((topic) => topic.category === role).length
+              const roleInfo = role === "general" ? null : roleMetadata[role]
 
               return (
-                <motion.article
-                  key={topic.id}
-                  className="rounded-lg border border-border bg-card p-5 shadow-sm"
+                <motion.button
+                  key={role}
+                  type="button"
+                  onClick={() => {
+                    setQuery("")
+                    setSelectedRoleView(role)
+                  }}
+                  className="group min-h-48 rounded-lg border border-border bg-card p-5 text-left shadow-sm transition-colors hover:border-primary/50 hover:bg-card/80 focus:outline-none focus:ring-2 focus:ring-primary"
                   initial={{ opacity: 0, y: 14 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.04 }}
                 >
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                    <div className="min-w-0 flex-1">
-                      <div className="mb-3 flex flex-wrap items-center gap-2">
-                        <Badge variant="secondary">
-                          {getRoleLabel(topic.category)}
-                        </Badge>
-                        <Badge variant="outline">
-                          Orden {topic.order}
-                        </Badge>
-                        <Badge variant="outline" className="gap-1">
-                          <TypeIcon className="h-3 w-3" />
-                          {contentTypeLabels[topic.contentType]}
-                        </Badge>
-                      </div>
-                      <h2 className="text-xl font-semibold text-foreground">
-                        {topic.title}
-                      </h2>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {topic.summary}
-                      </p>
-                    </div>
-
-                    <div className="flex items-center gap-2 lg:justify-end">
-                      {canEdit ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={async (event) => {
-                            event.stopPropagation()
-                            const confirmed = await confirmAction({
-                              title: "Editar tema",
-                              description: `Vas a modificar "${topic.title}".`,
-                              confirmLabel: "Editar",
-                            })
-                            if (!confirmed) return
-                            setEditingTopic(topic)
-                            setIsModalOpen(true)
-                          }}
-                          aria-label={`Editar ${topic.title}`}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                      {canDelete ? (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="icon-sm"
-                          onClick={(event) => {
-                            event.stopPropagation()
-                            handleDeleteTopic(topic.id)
-                          }}
-                          aria-label={`Eliminar ${topic.title}`}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      ) : null}
-                    </div>
-                  </div>
-
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    onClick={() => setSelectedTopic(topic)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault()
-                        setSelectedTopic(topic)
-                      }
-                    }}
-                    className="mt-4 grid w-full cursor-pointer gap-4 rounded-lg text-left focus:outline-none focus:ring-2 focus:ring-primary lg:grid-cols-[1fr_280px]"
-                  >
-                    <p className="text-sm leading-relaxed text-foreground/80">
-                      {topic.body}
-                    </p>
-
-                    <TrainingMedia topic={topic} />
-                  </div>
-
-                  <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-border pt-4 text-xs text-muted-foreground">
-                    <span className="inline-flex items-center gap-1">
-                      <CalendarClock className="h-3.5 w-3.5" />
-                      Actualizado {topic.updatedAt}
+                  <div className="flex items-start justify-between gap-4">
+                    <span className="rounded-lg bg-primary/10 p-3 text-primary">
+                      <GraduationCap className="h-6 w-6" />
                     </span>
-                    <span>Ver informacion completa</span>
+                    <Badge variant="secondary">
+                      {count} {count === 1 ? "paso" : "pasos"}
+                    </Badge>
                   </div>
-                </motion.article>
+                  <h2 className="mt-5 text-xl font-semibold text-foreground">
+                    {getRoleLabel(role)}
+                  </h2>
+                  <p className="mt-2 line-clamp-3 text-sm text-muted-foreground">
+                    {role === "general"
+                      ? "Capacitaciones transversales para varios roles."
+                      : roleInfo?.description ?? "Capacitacion especifica por rol."}
+                  </p>
+                  <span className="mt-5 inline-flex items-center gap-2 text-sm font-medium text-primary">
+                    Abrir ruta
+                    <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+                  </span>
+                </motion.button>
               )
             })}
           </div>
         ) : null}
 
-        {!isLoading && !visibleTopics.length ? (
+        {!isLoading && selectedRoleView ? (
+          <section className="space-y-5">
+            <div className="flex flex-col gap-3 rounded-lg border border-border bg-card/50 p-4 md:flex-row md:items-center md:justify-between">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => {
+                  setSelectedRoleView(null)
+                  setQuery("")
+                }}
+                className="w-fit gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Roles
+              </Button>
+              <div className="relative w-full md:max-w-sm">
+                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  className="pl-9"
+                  placeholder="Buscar paso"
+                />
+              </div>
+            </div>
+
+            {selectedRoleTopics.length ? (
+              <div className="overflow-x-auto pb-4">
+                <div className="flex min-w-max items-stretch gap-3">
+                  {selectedRoleTopics.map((topic, index) => (
+                    <div key={topic.id} className="flex items-center gap-3">
+                      <TrainingStepCard
+                        topic={topic}
+                        stepNumber={index + 1}
+                        canEdit={canEdit}
+                        canDelete={canDelete}
+                        onOpen={() => setSelectedTopic(topic)}
+                        onEdit={() => handleEditTopic(topic)}
+                        onDelete={() => handleDeleteTopic(topic.id)}
+                      />
+                      {index < selectedRoleTopics.length - 1 ? (
+                        <ArrowRight className="h-6 w-6 flex-none text-muted-foreground" />
+                      ) : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
+                <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
+                <p className="font-medium text-foreground">
+                  No hay pasos para {getRoleLabel(selectedRoleView)}
+                </p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {canAdd
+                    ? "Crea el primer paso para iniciar esta ruta."
+                    : "Cuando el administrador agregue contenido, aparecera aqui."}
+                </p>
+                {canAdd ? (
+                  <Button onClick={handleCreate} className="mt-4 gap-2">
+                    <Plus className="h-4 w-4" />
+                    Crear primer paso
+                  </Button>
+                ) : null}
+              </div>
+            )}
+          </section>
+        ) : null}
+
+        {!isLoading && !selectedRoleView && !roleCards.length ? (
           <div className="rounded-lg border border-dashed border-border bg-card/40 p-8 text-center">
             <FileText className="mx-auto mb-3 h-10 w-10 text-muted-foreground" />
             <p className="font-medium text-foreground">
-              No hay temas disponibles
+              No hay capacitaciones disponibles
             </p>
             <p className="mt-1 text-sm text-muted-foreground">
-              Ajusta la busqueda o crea contenido para este rol.
+              Cuando el administrador agregue contenido para tu rol, aparecera aqui.
             </p>
           </div>
         ) : null}
@@ -465,9 +492,11 @@ export function Training({ user, onBack }: TrainingProps) {
       <TrainingTopicModal
         isOpen={isModalOpen}
         topic={editingTopic}
+        defaults={modalDefaults}
         onClose={() => {
           setIsModalOpen(false)
           setEditingTopic(null)
+          setModalDefaults(null)
         }}
         onSave={handleSaveTopic}
         isSaving={isSaving}
@@ -532,6 +561,104 @@ function TrainingMedia({ topic }: { topic: TrainingTopic }) {
     <div className="flex min-h-32 items-center justify-center rounded-lg border border-border bg-muted/30 text-sm text-muted-foreground">
       Contenido de texto
     </div>
+  )
+}
+
+function TrainingStepCard({
+  topic,
+  stepNumber,
+  canEdit,
+  canDelete,
+  onOpen,
+  onEdit,
+  onDelete,
+}: {
+  topic: TrainingTopic
+  stepNumber: number
+  canEdit: boolean
+  canDelete: boolean
+  onOpen: () => void
+  onEdit: () => void
+  onDelete: () => void
+}) {
+  const TypeIcon = contentTypeIcons[topic.contentType]
+
+  return (
+    <motion.article
+      className="group relative aspect-square w-72 rounded-lg border border-border bg-card p-5 shadow-sm transition-colors hover:border-primary/50"
+      initial={{ opacity: 0, y: 14 }}
+      animate={{ opacity: 1, y: 0 }}
+    >
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex h-full flex-col text-left focus:outline-none"
+        aria-label={`Abrir ${topic.title}`}
+      >
+        <div className="flex items-start justify-between gap-3">
+          <span className="flex h-12 w-12 items-center justify-center rounded-lg bg-primary text-lg font-bold text-primary-foreground">
+            {stepNumber}
+          </span>
+          <Badge variant="outline" className="gap-1">
+            <TypeIcon className="h-3 w-3" />
+            {contentTypeLabels[topic.contentType]}
+          </Badge>
+        </div>
+
+        <div className="mt-5 min-h-0">
+          <p className="text-xs font-medium uppercase text-muted-foreground">
+            Paso {stepNumber}
+          </p>
+          <h3 className="mt-2 line-clamp-2 text-lg font-semibold text-foreground">
+            {topic.title}
+          </h3>
+          <p className="mt-2 line-clamp-4 text-sm leading-relaxed text-muted-foreground">
+            {topic.summary}
+          </p>
+        </div>
+
+        <div
+          className={`mt-auto flex items-center justify-between gap-3 border-t border-border pt-4 ${
+            canEdit || canDelete ? "pr-20" : ""
+          }`}
+        >
+          <span className="text-xs text-muted-foreground">
+            Orden {topic.order}
+          </span>
+          <span className="inline-flex items-center gap-1 text-sm font-medium text-primary">
+            Abrir
+            <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+          </span>
+        </div>
+      </button>
+
+      {(canEdit || canDelete) ? (
+        <div className="absolute bottom-4 right-4 flex justify-end gap-2">
+          {canEdit ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={onEdit}
+              aria-label={`Editar ${topic.title}`}
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+          ) : null}
+          {canDelete ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="icon-sm"
+              onClick={onDelete}
+              aria-label={`Eliminar ${topic.title}`}
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          ) : null}
+        </div>
+      ) : null}
+    </motion.article>
   )
 }
 
@@ -645,12 +772,18 @@ function TrainingDetail({
 function TrainingTopicModal({
   isOpen,
   topic,
+  defaults,
   onClose,
   onSave,
   isSaving,
 }: {
   isOpen: boolean
   topic: TrainingTopic | null
+  defaults?: {
+    category: UserRole | "general"
+    visibleTo: UserRole[]
+    order: number
+  } | null
   onClose: () => void
   onSave: (topic: TrainingTopicFormData) => void
   isSaving?: boolean
@@ -670,16 +803,16 @@ function TrainingTopicModal({
     if (!isOpen) return
 
     setTitle(topic?.title ?? "")
-    setCategory(topic?.category ?? "general")
-    setOrder(topic?.order ?? 1)
+    setCategory(topic?.category ?? defaults?.category ?? "general")
+    setOrder(topic?.order ?? defaults?.order ?? 1)
     setSummary(topic?.summary ?? "")
     setBody(topic?.body ?? "")
     setContentType(topic?.contentType ?? "text")
     setMediaUrl(topic?.mediaUrl ?? "")
     setMediaFile(null)
-    setVisibleTo(topic?.visibleTo ?? ["encuestador"])
+    setVisibleTo(topic?.visibleTo ?? defaults?.visibleTo ?? ["encuestador"])
     setUpdatedAt(topic?.updatedAt ?? new Date().toISOString().split("T")[0])
-  }, [isOpen, topic])
+  }, [defaults, isOpen, topic])
 
   const handleMediaUpload = (event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0]
