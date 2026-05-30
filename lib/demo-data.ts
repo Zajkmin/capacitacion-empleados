@@ -47,15 +47,15 @@ const initialStore: DemoStore = {
       type: "demo",
       projects: [
         {
-          id: "demo-project-arcor",
-          name: "Arcor PY Demo",
+          id: "demo-project-retail",
+          name: "Proyecto Retail Demo",
           bgColor: "bg-sky-600",
           textColor: "text-white",
           coverImage: undefined,
         },
         {
-          id: "demo-project-lacteos",
-          name: "Lacteos Centro Demo",
+          id: "demo-project-cadena-frio",
+          name: "Proyecto Cadena de Frio Demo",
           bgColor: "bg-emerald-600",
           textColor: "text-white",
           coverImage: undefined,
@@ -64,7 +64,7 @@ const initialStore: DemoStore = {
     },
   ],
   sections: {
-    "demo-project-arcor": [
+    "demo-project-retail": [
       {
         id: "demo-section-rules",
         title: "Reglas del Proyecto",
@@ -116,16 +116,16 @@ const initialStore: DemoStore = {
         color: "bg-cyan-500",
       },
     ],
-    "demo-project-lacteos": [
+    "demo-project-cadena-frio": [
       {
-        id: "demo-section-lacteos-rules",
+        id: "demo-section-frio-rules",
         title: "Reglas de Cadena de Frio",
         description: "Controles basicos para productos refrigerados",
         type: "rules",
         color: "bg-primary",
       },
       {
-        id: "demo-section-lacteos-photos",
+        id: "demo-section-frio-photos",
         title: "Fotos Guia",
         description: "Ejemplos visuales de heladeras y cabeceras",
         type: "photos",
@@ -266,10 +266,10 @@ const initialStore: DemoStore = {
         updatedAt: nowIso(),
       },
     ],
-    "demo-section-lacteos-rules": [
+    "demo-section-frio-rules": [
       {
-        id: "demo-item-lacteos-temp",
-        sectionId: "demo-section-lacteos-rules",
+        id: "demo-item-frio-temp",
+        sectionId: "demo-section-frio-rules",
         type: "rule",
         title: "Temperatura visible",
         description: "Registrar heladera con termometro visible cuando exista.",
@@ -279,10 +279,10 @@ const initialStore: DemoStore = {
         updatedAt: nowIso(),
       },
     ],
-    "demo-section-lacteos-photos": [
+    "demo-section-frio-photos": [
       {
-        id: "demo-item-lacteos-photo",
-        sectionId: "demo-section-lacteos-photos",
+        id: "demo-item-frio-photo",
+        sectionId: "demo-section-frio-photos",
         type: "photo",
         title: "Heladera limpia y ordenada",
         description: "Ejemplo de foto guia para cadena de frio.",
@@ -338,7 +338,7 @@ const initialStore: DemoStore = {
       role: "supervisor",
       createdAt: "2026-05-29",
       extraPermissions: ["edit_section"],
-      assignedProjectIds: ["demo-project-arcor"],
+      assignedProjectIds: ["demo-project-retail"],
     },
   ],
   roles: [
@@ -381,8 +381,8 @@ const initialStore: DemoStore = {
   activities: [
     {
       id: "demo-activity-1",
-      projectId: "demo-project-arcor",
-      projectName: "Arcor PY Demo",
+      projectId: "demo-project-retail",
+      projectName: "Proyecto Retail Demo",
       sectionId: "demo-section-rules",
       sectionTitle: "Reglas del Proyecto",
       sectionType: "rules",
@@ -394,8 +394,8 @@ const initialStore: DemoStore = {
     },
     {
       id: "demo-activity-2",
-      projectId: "demo-project-arcor",
-      projectName: "Arcor PY Demo",
+      projectId: "demo-project-retail",
+      projectName: "Proyecto Retail Demo",
       sectionId: "demo-section-photos",
       sectionTitle: "Fotos Guia",
       sectionType: "photos",
@@ -497,7 +497,7 @@ export function saveDemoProject(input: {
   )
 
   if (!store.sections[project.id]) {
-    store.sections[project.id] = clone(initialStore.sections["demo-project-arcor"]).map(
+    store.sections[project.id] = clone(initialStore.sections["demo-project-retail"]).map(
       (section, index) => ({
         ...section,
         id: `${project.id}-section-${index}`,
