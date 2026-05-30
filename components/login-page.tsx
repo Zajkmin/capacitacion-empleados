@@ -257,6 +257,9 @@ export function LoginPage({ onLogin, onGuestLogin }: LoginPageProps) {
             {" "}y{" "}
             <button className="text-primary hover:underline">Política de privacidad</button>
           </p>
+          <p className="mt-3 text-center text-xs text-muted-foreground">
+            Copyright 2026 Jazmín Irazusta
+          </p>
         </motion.div>
       </div>
     </div>

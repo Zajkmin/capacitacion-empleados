@@ -181,6 +181,12 @@ export function Sidebar({
           <LogOut className="w-4 h-4" />
           {!collapsed && <span className="text-sm">Cerrar Sesion</span>}
         </button>
+
+        {!collapsed && (
+          <p className="mt-3 text-center text-[11px] text-muted-foreground">
+            Copyright 2026 Jazmín Irazusta
+          </p>
+        )}
       </div>
     </motion.aside>
   )
