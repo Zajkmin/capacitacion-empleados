@@ -34,7 +34,7 @@ import {
 import { uploadPublicFile } from "@/lib/supabase/storage"
 
 interface DashboardProps {
-  user: { name: string; email: string; role: string }
+  user: { name: string; email: string; role: string; isDemo?: boolean; demoRoleLabel?: string }
   onProjectSelect: (projectId: string) => void
 }
 
@@ -529,7 +529,7 @@ export function Dashboard({ user, onProjectSelect }: DashboardProps) {
           </div>
           <div className="flex items-center gap-3">
             <span className="hidden rounded-full border border-primary/20 bg-primary/10 px-3 py-1.5 text-sm font-medium text-primary md:inline-block">
-              {user.role}
+              {user.demoRoleLabel ?? user.role}
             </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-cyan-400 font-semibold text-white shadow-lg shadow-primary/25">
               {user.name

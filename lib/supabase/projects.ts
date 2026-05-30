@@ -3,6 +3,22 @@
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Json } from "@/lib/supabase/database.types"
 import type { SectionType } from "@/lib/roles-permissions"
+import {
+  deleteDemoProject,
+  deleteDemoProjectGroup,
+  deleteDemoProjectSection,
+  deleteDemoSectionItem,
+  getDemoProject,
+  getDemoProjectGroups,
+  listDemoActivity,
+  listDemoProjectSections,
+  listDemoSectionItems,
+  saveDemoProject,
+  saveDemoProjectGroup,
+  saveDemoProjectSection,
+  saveDemoSectionItem,
+} from "@/lib/demo-data"
+import { isDemoMode } from "@/lib/demo-mode"
 
 export interface ProjectRecord {
   id: string
@@ -157,6 +173,8 @@ function mapProject(project: {
 }
 
 export async function listProjectGroupsWithProjects() {
+  if (isDemoMode()) return getDemoProjectGroups()
+
   const supabase = getSupabaseBrowserClient()
   const { data: groups, error: groupsError } = await supabase
     .from("project_groups")
@@ -188,6 +206,8 @@ export async function listProjectGroupsWithProjects() {
 }
 
 export async function getProject(projectId: string): Promise<ProjectDetailRecord> {
+  if (isDemoMode()) return getDemoProject(projectId)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("projects")
@@ -218,6 +238,8 @@ export async function saveProjectGroup(input: {
   type?: string
   sortOrder?: number
 }) {
+  if (isDemoMode()) return saveDemoProjectGroup(input)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("project_groups")
@@ -236,6 +258,11 @@ export async function saveProjectGroup(input: {
 }
 
 export async function deleteProjectGroup(groupId: string) {
+  if (isDemoMode()) {
+    deleteDemoProjectGroup(groupId)
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
   const { error } = await supabase.from("project_groups").delete().eq("id", groupId)
   if (error) throw new Error(error.message)
@@ -250,6 +277,8 @@ export async function saveProject(input: {
   coverImage?: string
   sortOrder?: number
 }) {
+  if (isDemoMode()) return saveDemoProject(input)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("projects")
@@ -288,6 +317,11 @@ export async function saveProject(input: {
 }
 
 export async function deleteProject(projectId: string) {
+  if (isDemoMode()) {
+    deleteDemoProject(projectId)
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
   const { error } = await supabase.from("projects").delete().eq("id", projectId)
   if (error) throw new Error(error.message)
@@ -356,6 +390,8 @@ async function recordActivityEvent(input: {
 }
 
 export async function listProjectSections(projectId: string) {
+  if (isDemoMode()) return listDemoProjectSections(projectId)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("project_sections")
@@ -378,6 +414,8 @@ export async function saveProjectSection(input: {
   sortOrder?: number
   userId?: string
 }) {
+  if (isDemoMode()) return saveDemoProjectSection(input)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("project_sections")
@@ -400,6 +438,11 @@ export async function saveProjectSection(input: {
 }
 
 export async function deleteProjectSection(sectionId: string) {
+  if (isDemoMode()) {
+    deleteDemoProjectSection(sectionId)
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
   const { error } = await supabase
     .from("project_sections")
@@ -448,6 +491,8 @@ function mapSectionItem(item: {
 }
 
 export async function listSectionItems(sectionId: string) {
+  if (isDemoMode()) return listDemoSectionItems(sectionId)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("section_items")
@@ -475,6 +520,8 @@ export async function saveSectionItem(input: {
   sortOrder?: number
   userId?: string
 }) {
+  if (isDemoMode()) return saveDemoSectionItem(input)
+
   const supabase = getSupabaseBrowserClient()
   const action = input.id ? "updated" : "created"
   const context = await getSectionActivityContext(input.sectionId)
@@ -517,6 +564,11 @@ export async function saveSectionItem(input: {
 }
 
 export async function deleteSectionItem(itemId: string, userId?: string) {
+  if (isDemoMode()) {
+    deleteDemoSectionItem(itemId)
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
   const { data: item, error: itemError } = await supabase
     .from("section_items")
@@ -549,6 +601,8 @@ export async function deleteSectionItem(itemId: string, userId?: string) {
 }
 
 export async function listProjectActivity(projectId?: string) {
+  if (isDemoMode()) return listDemoActivity(projectId)
+
   const supabase = getSupabaseBrowserClient()
   let query = supabase
     .from("activity_events")
@@ -581,6 +635,8 @@ export async function listProjectActivity(projectId?: string) {
 }
 
 export async function getLatestActivityTime() {
+  if (isDemoMode()) return new Date().toISOString()
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("activity_events")
@@ -595,6 +651,8 @@ export async function getLatestActivityTime() {
 }
 
 export async function getNotificationSeenAt(userId: string) {
+  if (isDemoMode()) return null
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("notification_reads")
@@ -608,6 +666,8 @@ export async function getNotificationSeenAt(userId: string) {
 }
 
 export async function markNotificationsSeen(userId: string) {
+  if (isDemoMode()) return new Date().toISOString()
+
   const supabase = getSupabaseBrowserClient()
   const seenAt = new Date().toISOString()
   const { error } = await supabase

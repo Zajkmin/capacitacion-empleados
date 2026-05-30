@@ -26,6 +26,8 @@ interface DashboardLayoutProps {
     email: string
     role: UserRole
     permissions?: Permission[]
+    isDemo?: boolean
+    demoRoleLabel?: string
   }
   onLogout: () => void
   onUserUpdate: (updates: { name?: string }) => void
@@ -82,6 +84,7 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false)
   const [hasUnreadNotifications, setHasUnreadNotifications] = useState(false)
   const [isGlobalSearchOpen, setIsGlobalSearchOpen] = useState(false)
+  const [demoNotice, setDemoNotice] = useState("")
   const isNavigatingHistory = useRef(false)
 
   const applyNavigationState = (state: NavigationState) => {
@@ -134,6 +137,19 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
 
     return () => window.clearInterval(intervalId)
   }, [user.id])
+
+  useEffect(() => {
+    if (!user.isDemo) return
+
+    const handleDemoNotice = (event: Event) => {
+      const detail = (event as CustomEvent<string>).detail
+      setDemoNotice(detail)
+      window.setTimeout(() => setDemoNotice(""), 5000)
+    }
+
+    window.addEventListener("nexo-demo-notice", handleDemoNotice)
+    return () => window.removeEventListener("nexo-demo-notice", handleDemoNotice)
+  }, [user.isDemo])
 
   useEffect(() => {
     const initialState = parseNavigationHash()
@@ -235,6 +251,18 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
 
   return (
     <div className="flex min-h-screen w-full min-w-0 overflow-x-hidden bg-background">
+      {user.isDemo ? (
+        <div className="fixed inset-x-0 top-0 z-[65] border-b border-amber-500/30 bg-amber-500/15 px-4 py-2 text-center text-sm font-medium text-amber-700 backdrop-blur dark:text-amber-200">
+          Modo Invitado / Demo
+        </div>
+      ) : null}
+
+      {demoNotice ? (
+        <div className="fixed right-4 top-14 z-[75] max-w-md rounded-lg border border-primary/30 bg-card px-4 py-3 text-sm text-foreground shadow-xl">
+          {demoNotice}
+        </div>
+      ) : null}
+
       {/* Desktop Sidebar */}
       <div className="hidden lg:block">
         <Sidebar
@@ -251,6 +279,8 @@ export function DashboardLayout({ user, onLogout, onUserUpdate }: DashboardLayou
       
       {/* Main Content */}
       <main className={`min-w-0 flex-1 overflow-x-hidden pb-24 transition-all duration-300 lg:pb-0 ${
+        user.isDemo ? "pt-9" : ""
+      } ${
         sidebarCollapsed ? "lg:ml-[72px]" : "lg:ml-[280px]"
       }`}>
         <AnimatePresence mode="wait">

@@ -2,6 +2,12 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { UserRole } from "@/lib/roles-permissions"
+import {
+  deleteDemoTrainingTopic,
+  listDemoTrainingTopics,
+  saveDemoTrainingTopic,
+} from "@/lib/demo-data"
+import { isDemoMode } from "@/lib/demo-mode"
 
 export type TrainingContentType = "text" | "photo" | "video" | "link" | "pdf"
 
@@ -45,6 +51,8 @@ function mapTrainingTopic(topic: {
 }
 
 export async function listTrainingTopics() {
+  if (isDemoMode()) return listDemoTrainingTopics()
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("training_topics")
@@ -71,6 +79,8 @@ export async function saveTrainingTopic(input: {
   visibleTo: UserRole[]
   userId?: string
 }) {
+  if (isDemoMode()) return saveDemoTrainingTopic(input)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("training_topics")
@@ -98,6 +108,11 @@ export async function saveTrainingTopic(input: {
 }
 
 export async function deleteTrainingTopic(topicId: string) {
+  if (isDemoMode()) {
+    deleteDemoTrainingTopic(topicId)
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
   const { error } = await supabase
     .from("training_topics")

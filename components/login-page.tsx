@@ -2,19 +2,21 @@
 
 import { useState } from "react"
 import { motion } from "framer-motion"
-import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3 } from "lucide-react"
+import { Eye, EyeOff, Zap, ArrowRight, Shield, BarChart3, Sparkles } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
 interface LoginPageProps {
   onLogin: (email: string, password: string) => Promise<void>
+  onGuestLogin: () => Promise<void>
 }
 
-export function LoginPage({ onLogin }: LoginPageProps) {
+export function LoginPage({ onLogin, onGuestLogin }: LoginPageProps) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [showPassword, setShowPassword] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const [isGuestLoading, setIsGuestLoading] = useState(false)
   const [errorMessage, setErrorMessage] = useState("")
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -32,6 +34,23 @@ export function LoginPage({ onLogin }: LoginPageProps) {
       )
     } finally {
       setIsLoading(false)
+    }
+  }
+
+  const handleGuestLogin = async () => {
+    setIsGuestLoading(true)
+    setErrorMessage("")
+
+    try {
+      await onGuestLogin()
+    } catch (error) {
+      setErrorMessage(
+        error instanceof Error
+          ? error.message
+          : "No se pudo iniciar el modo invitado.",
+      )
+    } finally {
+      setIsGuestLoading(false)
     }
   }
 
@@ -188,7 +207,7 @@ export function LoginPage({ onLogin }: LoginPageProps) {
               
               <Button
                 type="submit"
-                disabled={isLoading}
+                disabled={isLoading || isGuestLoading}
                 className="w-full h-12 bg-primary hover:bg-primary/90 text-primary-foreground font-semibold rounded-xl transition-all duration-200 hover:shadow-lg hover:shadow-primary/25"
               >
                 {isLoading ? (
@@ -200,6 +219,26 @@ export function LoginPage({ onLogin }: LoginPageProps) {
                   <div className="flex items-center gap-2">
                     <span>Ingresar</span>
                     <ArrowRight className="w-5 h-5" />
+                  </div>
+                )}
+              </Button>
+
+              <Button
+                type="button"
+                variant="outline"
+                disabled={isLoading || isGuestLoading}
+                onClick={handleGuestLogin}
+                className="w-full h-12 rounded-xl font-semibold"
+              >
+                {isGuestLoading ? (
+                  <div className="flex items-center gap-2">
+                    <div className="w-5 h-5 border-2 border-primary/30 border-t-primary rounded-full animate-spin" />
+                    <span>Preparando demo...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <Sparkles className="h-5 w-5" />
+                    <span>Entrar como invitado</span>
                   </div>
                 )}
               </Button>

@@ -2,6 +2,8 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { UserRole } from "@/lib/roles-permissions"
+import { searchDemoContent } from "@/lib/demo-data"
+import { isDemoMode } from "@/lib/demo-mode"
 
 export type GlobalSearchResultType =
   | "rule"
@@ -92,6 +94,7 @@ export async function globalSearch(input: {
 }) {
   const query = input.query.trim()
   if (query.length < 2) return []
+  if (isDemoMode()) return searchDemoContent(query).slice(0, input.limit ?? 40)
 
   const supabase = getSupabaseBrowserClient()
   const fetchLimit = 1000

@@ -2,6 +2,13 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Permission, UserRole } from "@/lib/roles-permissions"
+import {
+  deleteDemoRole,
+  getDemoRolePermissions,
+  listDemoRoles,
+  saveDemoRole,
+} from "@/lib/demo-data"
+import { isDemoMode } from "@/lib/demo-mode"
 
 export interface RoleConfig {
   id: UserRole
@@ -31,6 +38,8 @@ function mapRole(role: {
 }
 
 export async function listRoles() {
+  if (isDemoMode()) return listDemoRoles()
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("roles")
@@ -45,6 +54,8 @@ export async function listRoles() {
 }
 
 export async function getRolePermissions(roleId: UserRole) {
+  if (isDemoMode()) return getDemoRolePermissions(roleId)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("roles")
@@ -60,6 +71,8 @@ export async function getRolePermissions(roleId: UserRole) {
 }
 
 export async function saveRole(role: RoleConfig) {
+  if (isDemoMode()) return saveDemoRole(role)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("roles")
@@ -82,6 +95,11 @@ export async function saveRole(role: RoleConfig) {
 }
 
 export async function deleteRole(roleId: UserRole, fallbackRole: UserRole) {
+  if (isDemoMode()) {
+    deleteDemoRole(roleId, fallbackRole)
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
 
   const { error: profilesError } = await supabase

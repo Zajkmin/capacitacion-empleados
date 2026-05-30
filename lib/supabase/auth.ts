@@ -5,6 +5,8 @@ import type { User as SupabaseAuthUser } from "@supabase/supabase-js"
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Permission, UserRole } from "@/lib/roles-permissions"
 import { getRolePermissions } from "@/lib/supabase/roles"
+import { getDemoUser, resetDemoData } from "@/lib/demo-data"
+import { isDemoMode, startDemoMode, stopDemoMode } from "@/lib/demo-mode"
 
 export interface AppUser {
   id: string
@@ -13,6 +15,8 @@ export interface AppUser {
   role: UserRole
   permissions: Permission[]
   extraPermissions: Permission[]
+  isDemo?: boolean
+  demoRoleLabel?: string
 }
 
 function getFallbackName(user: SupabaseAuthUser) {
@@ -84,12 +88,20 @@ async function getOrCreateProfile(user: SupabaseAuthUser): Promise<AppUser> {
 }
 
 export async function getCurrentAppUser() {
+  if (isDemoMode()) return getDemoUser()
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase.auth.getUser()
 
   if (error || !data.user) return null
 
   return getOrCreateProfile(data.user)
+}
+
+export async function signInAsGuestDemo() {
+  resetDemoData()
+  startDemoMode()
+  return getDemoUser()
 }
 
 export async function signInWithPassword(email: string, password: string) {
@@ -111,6 +123,12 @@ export async function signInWithPassword(email: string, password: string) {
 }
 
 export async function signOut() {
+  if (isDemoMode()) {
+    resetDemoData()
+    stopDemoMode()
+    return
+  }
+
   const supabase = getSupabaseBrowserClient()
   const { error } = await supabase.auth.signOut()
 

@@ -1,6 +1,7 @@
 "use client"
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
+import { isDemoMode, notifyDemoWrite } from "@/lib/demo-mode"
 
 export type AppStorageBucket =
   | "project-covers"
@@ -36,6 +37,18 @@ export async function uploadPublicFile({
   file: File
   folder: string
 }) {
+  if (isDemoMode()) {
+    notifyDemoWrite()
+    const extension = getFileExtension(file)
+    const safeFolder = sanitizePathPart(folder) || "uploads"
+    const path = `${safeFolder}/demo-${crypto.randomUUID()}.${extension}`
+
+    return {
+      path,
+      publicUrl: URL.createObjectURL(file),
+    }
+  }
+
   const supabase = getSupabaseBrowserClient()
   const extension = getFileExtension(file)
   const safeFolder = sanitizePathPart(folder) || "uploads"

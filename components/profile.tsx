@@ -46,6 +46,8 @@ interface ProfileProps {
     role: UserRole
     permissions?: Permission[]
     extraPermissions?: Permission[]
+    isDemo?: boolean
+    demoRoleLabel?: string
   }
   onBack: () => void
   onLogout: () => void
@@ -60,7 +62,13 @@ export function Profile({ user, onBack, onLogout, onUserUpdate }: ProfileProps) 
   const [isSaving, setIsSaving] = useState(false)
   const [message, setMessage] = useState("")
   const [errorMessage, setErrorMessage] = useState("")
-  const roleInfo = roleMetadata[user.role] ?? {
+  const roleInfo = user.isDemo
+    ? {
+        label: user.demoRoleLabel ?? "Administrador Demo",
+        description: "Sesion local de demostracion publica",
+        color: "bg-amber-600",
+      }
+    : roleMetadata[user.role] ?? {
     label: user.role,
     description: "Rol personalizado",
     color: "bg-slate-600",
@@ -310,7 +318,9 @@ export function Profile({ user, onBack, onLogout, onUserUpdate }: ProfileProps) 
             <DialogHeader>
               <DialogTitle>Editar nombre</DialogTitle>
               <DialogDescription>
-                Este cambio se guarda en tu perfil de Supabase.
+                {user.isDemo
+                  ? "En modo demo, este cambio se simula solo en esta sesion."
+                  : "Este cambio se guarda en tu perfil de Supabase."}
               </DialogDescription>
             </DialogHeader>
 

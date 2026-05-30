@@ -5,6 +5,7 @@ import { LoginPage } from "@/components/login-page"
 import { DashboardLayout } from "@/components/dashboard-layout"
 import {
   getCurrentAppUser,
+  signInAsGuestDemo,
   signInWithPassword,
   signOut,
   type AppUser,
@@ -43,6 +44,12 @@ export default function Home() {
     setIsLoggedIn(true)
   }
 
+  const handleGuestLogin = async () => {
+    const demoUser = await signInAsGuestDemo()
+    setUser(demoUser)
+    setIsLoggedIn(true)
+  }
+
   const handleLogout = async () => {
     await signOut()
     setUser(null)
@@ -67,7 +74,7 @@ export default function Home() {
   }
 
   if (!isLoggedIn) {
-    return <LoginPage onLogin={handleLogin} />
+    return <LoginPage onLogin={handleLogin} onGuestLogin={handleGuestLogin} />
   }
 
   return (

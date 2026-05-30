@@ -16,7 +16,7 @@ import {
 import type { ViewType } from "@/components/dashboard-layout"
 
 interface SidebarProps {
-  user: { name: string; email: string; role: string }
+  user: { name: string; email: string; role: string; isDemo?: boolean; demoRoleLabel?: string }
   currentView: ViewType
   onNavigate: (view: ViewType) => void
   onLogout: () => void
@@ -166,7 +166,7 @@ export function Sidebar({
                 {user.name}
               </p>
               <p className="text-xs text-muted-foreground truncate">
-                {user.role}
+                {user.demoRoleLabel ?? user.role}
               </p>
             </motion.div>
           )}

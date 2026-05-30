@@ -2,6 +2,14 @@
 
 import { getSupabaseBrowserClient } from "@/lib/supabase/client"
 import type { Permission, User, UserRole } from "@/lib/roles-permissions"
+import {
+  createDemoProfileUser,
+  listDemoProfiles,
+  saveDemoUserProjectAssignments,
+  updateDemoOwnProfileName,
+  updateDemoProfile,
+} from "@/lib/demo-data"
+import { isDemoMode } from "@/lib/demo-mode"
 
 function mapProfileToUser(profile: {
   id: string
@@ -24,6 +32,8 @@ function mapProfileToUser(profile: {
 }
 
 export async function listProfiles() {
+  if (isDemoMode()) return listDemoProfiles()
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("profiles")
@@ -65,6 +75,8 @@ export async function updateProfile(input: {
   role: UserRole
   extraPermissions: Permission[]
 }) {
+  if (isDemoMode()) return updateDemoProfile(input)
+
   const supabase = getSupabaseBrowserClient()
   const { data, error } = await supabase
     .from("profiles")
@@ -87,6 +99,8 @@ export async function updateProfile(input: {
 export async function updateOwnProfileName(input: {
   name: string
 }) {
+  if (isDemoMode()) return updateDemoOwnProfileName(input.name.trim())
+
   const supabase = getSupabaseBrowserClient()
   const trimmedName = input.name.trim()
 
@@ -119,6 +133,8 @@ export async function saveUserProjectAssignments(input: {
   projectIds: string[]
   assignedBy?: string
 }) {
+  if (isDemoMode()) return saveDemoUserProjectAssignments(input)
+
   const supabase = getSupabaseBrowserClient()
 
   const { error: deleteError } = await supabase
@@ -157,6 +173,8 @@ export async function createProfileUser(input: {
   role: UserRole
   extraPermissions: Permission[]
 }) {
+  if (isDemoMode()) return createDemoProfileUser(input)
+
   const supabase = getSupabaseBrowserClient()
   const {
     data: { session },

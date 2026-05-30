@@ -44,6 +44,7 @@ import {
   listProjectGroupsWithProjects,
   type ProjectGroupRecord,
 } from "@/lib/supabase/projects"
+import { isDemoMode, notifyDemoWrite } from "@/lib/demo-mode"
 
 interface AdminPanelProps {
   onBack: () => void
@@ -282,6 +283,7 @@ export function AdminPanel({ onBack }: AdminPanelProps) {
       confirmLabel: "Eliminar",
     })
     if (!confirmed) return
+    if (isDemoMode()) notifyDemoWrite()
     setUsers((currentUsers) => currentUsers.filter((user) => user.id !== id))
   }
 
