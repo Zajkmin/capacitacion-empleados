@@ -184,7 +184,9 @@ export function Sidebar({
 
         {!collapsed && (
           <p className="mt-3 text-center text-[11px] text-muted-foreground">
-            Copyright 2026 Jazmín Irazusta
+            Built by Jazmín Irazusta
+            <br />
+            v1.0 · © 2026
           </p>
         )}
       </div>
